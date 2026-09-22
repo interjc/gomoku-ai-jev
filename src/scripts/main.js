@@ -16,23 +16,32 @@ let playerColor = BLACK;       // human is black by default
 let difficulty = 'hard';
 let gameOver = false;
 let lang = 'en';
+try {
+  const savedLang = localStorage.getItem('gomoku_lang');
+  if (savedLang && ['en', 'ja', 'zh'].includes(savedLang)) {
+    lang = savedLang;
+  }
+} catch {}
 let dark = false;
 let moveHistory = [];          // [{row, col, player}]
 let winLine = null;
 let aiBusy = false;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
-const canvas   = document.getElementById('board-canvas');
-const ctx      = canvas.getContext('2d');
-const statusEl = document.getElementById('status');
-const histEl   = document.getElementById('history-list');
-const thinkEl  = document.getElementById('thinking');
-const langBtn  = document.getElementById('btn-lang');
-const themeBtn = document.getElementById('btn-theme');
-const newBtn   = document.getElementById('btn-new');
-const undoBtn  = document.getElementById('btn-undo');
-const diffSel  = document.getElementById('sel-difficulty');
-const colorSel = document.getElementById('sel-color');
+const canvas        = document.getElementById('board-canvas');
+const ctx           = canvas.getContext('2d');
+const statusEl      = document.getElementById('status');
+const histEl        = document.getElementById('history-list');
+const thinkEl       = document.getElementById('thinking');
+const langDropdown  = document.getElementById('lang-dropdown');
+const langBtn       = document.getElementById('btn-lang');
+const langBtnText   = document.getElementById('btn-lang-text');
+const langMenuItems = document.querySelectorAll('#lang-menu .dropdown-item');
+const themeBtn      = document.getElementById('btn-theme');
+const newBtn        = document.getElementById('btn-new');
+const undoBtn       = document.getElementById('btn-undo');
+const diffSel       = document.getElementById('sel-difficulty');
+const colorSel      = document.getElementById('sel-color');
 
 // ── Canvas geometry ───────────────────────────────────────────────────────────
 const PADDING   = 32;
@@ -160,16 +169,49 @@ function drawStone(row, col, player) {
   ctx.restore();
 }
 
+// ── Language Dropdown ─────────────────────────────────────────────────────────
+function openLangDropdown() {
+  langDropdown?.classList.add('open');
+  langBtn?.setAttribute('aria-expanded', 'true');
+}
+
+function closeLangDropdown() {
+  langDropdown?.classList.remove('open');
+  langBtn?.setAttribute('aria-expanded', 'false');
+}
+
+function toggleLangDropdown() {
+  if (langDropdown?.classList.contains('open')) {
+    closeLangDropdown();
+  } else {
+    openLangDropdown();
+  }
+}
+
+function setLanguage(newLang) {
+  if (!['en', 'ja', 'zh'].includes(newLang)) return;
+  lang = newLang;
+  try {
+    localStorage.setItem('gomoku_lang', lang);
+  } catch {}
+  updateUI();
+  closeLangDropdown();
+}
+
 // ── UI text ───────────────────────────────────────────────────────────────────
 function updateUI() {
-  document.documentElement.lang = lang;
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
   document.title            = t(lang, 'title');
   thinkEl.textContent       = t(lang, 'thinking');
   document.getElementById('app-title').textContent = t(lang, 'title');
   newBtn.textContent        = t(lang, 'newGame');
   undoBtn.textContent       = t(lang, 'undo');
-  langBtn.textContent       = t(lang, 'langLabel');
-  langBtn.setAttribute('aria-label', lang === 'ja' ? '日本語' : 'English');
+  if (langBtnText) {
+    langBtnText.textContent = t(lang, 'langLabel');
+  } else if (langBtn) {
+    langBtn.textContent     = t(lang, 'langLabel');
+  }
+  langBtn?.setAttribute('aria-label', t(lang, 'selectLang'));
   themeBtn.textContent      = dark ? t(lang, 'themeLight') : t(lang, 'themeDark');
   document.getElementById('label-difficulty').textContent = t(lang, 'difficulty');
   document.getElementById('label-color').textContent      = t(lang, 'playerColor');
@@ -179,6 +221,14 @@ function updateUI() {
   colorSel.options[0].text = t(lang, 'black');
   colorSel.options[1].text = t(lang, 'white');
   document.getElementById('history-title').textContent = t(lang, 'history');
+
+  langMenuItems.forEach(item => {
+    const itemLang = item.getAttribute('data-lang');
+    const isActive = itemLang === lang;
+    item.classList.toggle('active', isActive);
+    item.setAttribute('aria-checked', isActive ? 'true' : 'false');
+  });
+
   updateStatus();
   renderHistory();
 }
@@ -384,9 +434,30 @@ colorSel.addEventListener('change', e => {
   newGame();
 });
 
-langBtn.addEventListener('click', () => {
-  lang = lang === 'ja' ? 'en' : 'ja';
-  updateUI();
+langBtn?.addEventListener('click', e => {
+  e.stopPropagation();
+  toggleLangDropdown();
+});
+
+langMenuItems.forEach(item => {
+  item.addEventListener('click', e => {
+    e.stopPropagation();
+    const targetLang = item.getAttribute('data-lang');
+    setLanguage(targetLang);
+  });
+});
+
+document.addEventListener('click', e => {
+  if (langDropdown && !langDropdown.contains(e.target)) {
+    closeLangDropdown();
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && langDropdown?.classList.contains('open')) {
+    closeLangDropdown();
+    langBtn?.focus();
+  }
 });
 
 themeBtn.addEventListener('click', () => {

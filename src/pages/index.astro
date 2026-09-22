@@ -14,8 +14,47 @@ export const prerender = true;
   <header class="app-header">
     <h1 id="app-title">Gomoku AI JEV</h1>
     <div class="header-actions">
-      <button id="btn-lang" class="btn btn-sm" aria-label="English">EN</button>
-      <button id="btn-theme" class="btn btn-sm">🌙</button>
+      <div class="dropdown" id="lang-dropdown">
+        <button
+          id="btn-lang"
+          class="btn btn-sm dropdown-toggle"
+          type="button"
+          aria-haspopup="true"
+          aria-expanded="false"
+          aria-controls="lang-menu"
+          aria-label="Select language"
+        >
+          <svg class="lang-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.75" />
+            <path d="M1.25 8h13.5M8 1.25c2 2.2 3 4.5 3 6.75s-1 4.55-3 6.75c-2-2.2-3-4.5-3-6.75s1-4.55 3-6.75z" />
+          </svg>
+          <span id="btn-lang-text">English</span>
+          <svg class="dropdown-chevron" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true">
+            <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <ul id="lang-menu" class="dropdown-menu" role="menu">
+          <li role="none">
+            <button type="button" class="dropdown-item" role="menuitem" data-lang="en">
+              <span>English</span>
+              <span class="check-mark" aria-hidden="true">✓</span>
+            </button>
+          </li>
+          <li role="none">
+            <button type="button" class="dropdown-item" role="menuitem" data-lang="ja">
+              <span>日本語</span>
+              <span class="check-mark" aria-hidden="true">✓</span>
+            </button>
+          </li>
+          <li role="none">
+            <button type="button" class="dropdown-item" role="menuitem" data-lang="zh">
+              <span>简体中文</span>
+              <span class="check-mark" aria-hidden="true">✓</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+      <button id="btn-theme" class="btn btn-sm btn-icon" type="button" aria-label="Toggle theme">🌙</button>
       <a
         class="btn btn-sm btn-icon"
         href="https://github.com/interjc/gomoku-ai-jev"
@@ -23,7 +62,7 @@ export const prerender = true;
         rel="noopener noreferrer"
         aria-label="GitHub"
       >
-        <svg viewBox="0 0 16 16" aria-hidden="true">
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
           <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
         </svg>
       </a>

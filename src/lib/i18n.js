@@ -1,6 +1,14 @@
 /**
- * i18n.js — Japanese / English translations
+ * i18n.js — Japanese / English / Chinese translations
  */
+
+export const SUPPORTED_LANGS = ['en', 'ja', 'zh'];
+
+export const languages = [
+  { code: 'en', label: 'English', name: 'English' },
+  { code: 'ja', label: '日本語', name: '日本語' },
+  { code: 'zh', label: '简体中文', name: '简体中文' },
+];
 
 export const translations = {
   ja: {
@@ -22,7 +30,8 @@ export const translations = {
     draw:           '引き分け',
     history:        '棋譜',
     moveN:          (n) => `${n} 手目`,
-    langLabel:      'JA',
+    langLabel:      '日本語',
+    selectLang:     '言語を選択',
     themeToggle:    '🌙',
     themeDark:      '🌙',
     themeLight:     '☀️',
@@ -46,7 +55,33 @@ export const translations = {
     draw:           'Draw',
     history:        'Move History',
     moveN:          (n) => `Move ${n}`,
-    langLabel:      'EN',
+    langLabel:      'English',
+    selectLang:     'Select language',
+    themeToggle:    '🌙',
+    themeDark:      '🌙',
+    themeLight:     '☀️',
+  },
+  zh: {
+    title:          'Gomoku AI JEV',
+    newGame:        '新游戏',
+    undo:           '悔棋',
+    difficulty:     '难度',
+    easy:           '初级',
+    medium:         '中级',
+    hard:           '高级',
+    playerColor:    '执子',
+    black:          '黑棋（先手）',
+    white:          '白棋（后手）',
+    thinking:       'AI 思考中…',
+    yourTurn:       '你的回合',
+    aiTurn:         'AI 的回合',
+    blackWins:      '黑棋获胜！',
+    whiteWins:      '白棋获胜！',
+    draw:           '平局',
+    history:        '棋谱',
+    moveN:          (n) => `第 ${n} 手`,
+    langLabel:      '简体中文',
+    selectLang:     '选择语言',
     themeToggle:    '🌙',
     themeDark:      '🌙',
     themeLight:     '☀️',

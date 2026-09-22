@@ -16,7 +16,7 @@ A browser-based Gomoku (five-in-a-row) game. Jev chooses the move on the Worker,
 - **Undo** — rewind the last 2 moves (yours + AI's)
 - **Move history** panel with algebraic notation
 - **AI thinking indicator** with async rendering
-- **English / Japanese UI**. The header shows the active language. English is the default.
+- **English / Japanese / Chinese UI**. The header provides a click-to-open dropdown switcher for selecting languages. English is the default.
 - **Dark / light theme**
 - **Mobile-friendly** — touch support on canvas
 
@@ -111,12 +111,13 @@ gomoku-ai-jev/
 │   └── lib/
 │       ├── gomoku.js   Board logic (immutable), win detection
 │       ├── ai.js       Minimax + alpha-beta pruning
-│       ├── i18n.js     Japanese / English strings
+│       ├── i18n.js     Japanese / English / Chinese strings
 │       └── jev/        Choice request and server-side Jev call
 ├── tests/
 │   ├── gomoku.test.js
 │   ├── ai.test.js
-│   └── jev.test.js
+│   ├── jev.test.js
+│   └── i18n.test.js
 └── assets/             Screenshots and media
 ```
 
