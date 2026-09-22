@@ -253,6 +253,12 @@ body.dark .dropdown-item .check-mark {
   flex: 0 0 auto;
 }
 
+.controls-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .control-group {
   display: flex;
   flex-direction: column;
@@ -361,12 +367,28 @@ body.dark .dropdown-item .check-mark {
 /* ─── Mobile ───────────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .app-main {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "controls"
+      "board"
+      "history";
+    /* Pack the rows to the top. Stretching them to fill the screen lets a
+       longer move list change the board's position. */
+    align-content: start;
     padding: 10px;
     gap: 10px;
   }
 
+  /* Drop the sidebar box so the move list can sit under the board. Leaving it
+     inside the sidebar puts the list above the board, and each new move shifts
+     the board down. */
   .controls {
+    display: contents;
+  }
+
+  .controls-bar {
+    grid-area: controls;
     max-width: 100%;
     width: 100%;
     flex-direction: row;
@@ -379,11 +401,15 @@ body.dark .dropdown-item .check-mark {
   /* The column layout does not stretch its items, and the canvas sizes itself
      from this element's width, so give it a definite one to measure. */
   .board-section {
+    grid-area: board;
     width: 100%;
+    min-width: 0;
   }
 
   .history-panel {
+    grid-area: history;
     width: 100%;
+    min-width: 0;
     border-top: none;
     padding-top: 0;
   }

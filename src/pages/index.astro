@@ -71,30 +71,32 @@ export const prerender = true;
 
   <main class="app-main">
     <aside class="controls">
-      <div class="control-group">
-        <label id="label-difficulty" for="sel-difficulty">Difficulty</label>
-        <select id="sel-difficulty" class="select">
-          <option value="easy">Easy</option>
-          <option value="medium">Medium</option>
-          <option value="hard" selected>Hard</option>
-        </select>
-      </div>
+      <div class="controls-bar">
+        <div class="control-group">
+          <label id="label-difficulty" for="sel-difficulty">Difficulty</label>
+          <select id="sel-difficulty" class="select">
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard" selected>Hard</option>
+          </select>
+        </div>
 
-      <div class="control-group">
-        <label id="label-color" for="sel-color">Play as</label>
-        <select id="sel-color" class="select">
-          <option value="black">Black (first)</option>
-          <option value="white">White (second)</option>
-        </select>
-      </div>
+        <div class="control-group">
+          <label id="label-color" for="sel-color">Play as</label>
+          <select id="sel-color" class="select">
+            <option value="black">Black (first)</option>
+            <option value="white">White (second)</option>
+          </select>
+        </div>
 
-      <div class="button-row">
-        <button id="btn-new" class="btn btn-primary">New Game</button>
-        <button id="btn-undo" class="btn">Undo</button>
-      </div>
+        <div class="button-row">
+          <button id="btn-new" class="btn btn-primary">New Game</button>
+          <button id="btn-undo" class="btn">Undo</button>
+        </div>
 
-      <div id="status" class="status-text">Your turn</div>
-      <div id="thinking" class="thinking" hidden>AI thinking…</div>
+        <div id="status" class="status-text">Your turn</div>
+        <div id="thinking" class="thinking" hidden>AI thinking…</div>
+      </div>
 
       <section class="history-panel">
         <h2 id="history-title" class="history-title">Move History</h2>
