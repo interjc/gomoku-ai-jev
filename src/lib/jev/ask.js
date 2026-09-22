@@ -21,7 +21,8 @@ export async function askJev(env, request) {
     apiKey,
     baseURL,
     defaultModel: model,
-    timeout: 8000,
+    // Hard may ask twice in one turn, so keep a single attempt short.
+    timeout: 6000,
     retry: { maxRetries: 1 },
   });
   const { answers } = await client.systemOne({
@@ -34,5 +35,8 @@ export async function askJev(env, request) {
   return {
     choice: answers.move.choice,
     confidence: answers.move.confidence,
+    // The full distribution, not just the pick: hard blends it with the
+    // search ranking instead of taking the single top label.
+    probabilities: answers.move.probabilities,
   };
 }

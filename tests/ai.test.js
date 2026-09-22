@@ -1,8 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { BOARD_SIZE, EMPTY, BLACK, WHITE, createBoard, placeStone } from '../src/lib/gomoku.js';
-import { getAIMove, evaluateBoard, scorePattern } from '../src/lib/ai.js';
+import { BOARD_SIZE, EMPTY, BLACK, WHITE, createBoard, placeStone, checkWin } from '../src/lib/gomoku.js';
+import {
+  getAIMove, evaluateBoard, scorePattern, searchMove, DIFFICULTY, WIN_SCORE,
+} from '../src/lib/ai.js';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function placeRow(board, row, colStart, player, len) {
@@ -119,5 +121,86 @@ describe('getAIMove (hard)', () => {
     }
     const [r, c] = getAIMove(b, WHITE, 'hard');
     assert.equal(b[r][c], EMPTY);
+  });
+});
+
+// ── search ────────────────────────────────────────────────────────────────────
+describe('searchMove', () => {
+  it('ranks every root candidate with the line behind it', () => {
+    let b = placeStone(createBoard(), 7, 7, BLACK);
+    b = placeStone(b, 7, 8, WHITE);
+    const result = searchMove(b, WHITE, DIFFICULTY.hard);
+    assert.ok(result.ranked.length >= 2);
+    assert.ok(result.depth >= 2);
+    for (const entry of result.ranked) {
+      assert.equal(b[entry.row][entry.col], EMPTY);
+      assert.deepEqual(entry.line[0], [entry.row, entry.col]);
+    }
+    // Sorted best first.
+    for (let i = 1; i < result.ranked.length; i++) {
+      assert.ok(result.ranked[i - 1].score >= result.ranked[i].score);
+    }
+  });
+
+  it('keeps medium to a two-ply horizon', () => {
+    const b = placeStone(createBoard(), 7, 7, BLACK);
+    const result = searchMove(b, WHITE, DIFFICULTY.medium);
+    assert.equal(result.depth, 2);
+  });
+
+  it('honours the node budget', () => {
+    const b = placeStone(createBoard(), 7, 7, BLACK);
+    const budget = 3000;
+    const result = searchMove(b, WHITE, { ...DIFFICULTY.hard, nodeBudget: budget });
+    assert.ok(result.nodes <= budget + DIFFICULTY.hard.width, `used ${result.nodes} nodes`);
+    assert.ok(Number.isInteger(result.row));
+  });
+
+  it('can restrict the root to named points', () => {
+    const b = placeStone(createBoard(), 7, 7, BLACK);
+    const result = searchMove(b, WHITE, {
+      ...DIFFICULTY.hard,
+      rootMoves: [[7, 8], [6, 6]],
+    });
+    assert.equal(result.ranked.length, 2);
+    const points = result.ranked.map(e => `${e.row},${e.col}`).sort();
+    assert.deepEqual(points, ['6,6', '7,8']);
+  });
+});
+
+describe('hard tactics', () => {
+  it('finds the double-three fork and scores it as a forced win', () => {
+    // I8 makes a horizontal open three and a vertical open three at once.
+    let b = createBoard();
+    for (const [r, c] of [[7, 6], [7, 7], [5, 8], [6, 8]]) b = placeStone(b, r, c, WHITE);
+    for (const [r, c] of [[0, 0], [0, 1], [14, 14]]) b = placeStone(b, r, c, BLACK);
+
+    assert.deepEqual(getAIMove(b, WHITE, 'hard'), [7, 8]);
+    const result = searchMove(b, WHITE, DIFFICULTY.hard);
+    assert.ok(result.score >= WIN_SCORE / 2, `expected a forced win, scored ${result.score}`);
+  });
+
+  it('answers an open three instead of building elsewhere', () => {
+    let b = createBoard();
+    for (const [r, c] of [[7, 6], [7, 7], [7, 8]]) b = placeStone(b, r, c, BLACK);
+    for (const [r, c] of [[10, 3], [11, 4]]) b = placeStone(b, r, c, WHITE);
+    const [r, c] = getAIMove(b, WHITE, 'hard');
+    assert.ok((r === 7 && c === 5) || (r === 7 && c === 9), `played [${r},${c}] instead of an end of the three`);
+  });
+
+  it('beats the easy level from both colours', () => {
+    for (const hardIsBlack of [true, false]) {
+      let b = placeStone(createBoard(), 7, 7, hardIsBlack ? WHITE : BLACK);
+      let player = hardIsBlack ? BLACK : WHITE;
+      let winner = null;
+      for (let turn = 0; turn < 120; turn++) {
+        const level = player === (hardIsBlack ? BLACK : WHITE) ? 'hard' : 'easy';
+        const [r, c] = getAIMove(b, player, level);
+        b = placeStone(b, r, c, player);
+        if (checkWin(b, r, c, player)) { winner = player; break; }
+        player = player === BLACK ? WHITE : BLACK;
+      }
+      assert.equal(winner, hardIsBlack ? BLACK : WHITE, 'hard should beat easy');
+    }
   });
 });

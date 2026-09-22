@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Gomoku game. Jev chooses moves, with minimax as the fallback.",
+  "description": "Gomoku game. A depth-bounded search ranks the moves and Jev chooses among the near-equal ones.",
   "engines": {
     "node": ">=24.0.0"
   },

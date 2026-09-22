@@ -319,6 +319,13 @@ function checkGameEnd(row, col, player) {
   return false;
 }
 
+/** Search limits for the offline fallback, tighter than the Worker's. */
+const FALLBACK_LIMITS = {
+  easy:   {},
+  medium: {},
+  hard:   { maxDepth: 6, nodeBudget: 60_000 },
+};
+
 async function playAITurn(boardAtStart, aiColor) {
   let move = null;
   try {
@@ -346,7 +353,9 @@ async function playAITurn(boardAtStart, aiColor) {
 
   if (!move) {
     if (board !== boardAtStart || gameOver) return;
-    move = getAIMove(board, aiColor, difficulty);
+    // Only reached when the Worker is unreachable. This runs on the main
+    // thread, so cap the search well below what the server allows.
+    move = getAIMove(board, aiColor, difficulty, FALLBACK_LIMITS[difficulty]);
   }
 
   const [row, col] = move;
