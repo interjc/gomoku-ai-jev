@@ -409,26 +409,40 @@ function undo() {
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
+/**
+ * Canvas coordinates for a mouse or touch event, or null when the event
+ * carries no usable point.
+ *
+ * On `touchend` the lifted finger is in `changedTouches`; `touches` is an empty
+ * list, and an empty TouchList is still truthy, so it has to be read by length
+ * rather than existence.
+ */
 function getCanvasPos(e) {
+  const point = e.changedTouches?.[0] ?? e.touches?.[0] ?? e;
+  if (typeof point.clientX !== 'number' || typeof point.clientY !== 'number') return null;
+
   const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return null;
+  // The canvas is laid out by CSS, so its backing size and its on-screen size
+  // differ; scale the point into backing-store coordinates.
   const scaleX = canvas.width  / rect.width;
   const scaleY = canvas.height / rect.height;
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  return [(clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY];
+  return [(point.clientX - rect.left) * scaleX, (point.clientY - rect.top) * scaleY];
 }
 
-canvas.addEventListener('click', e => {
-  const [x, y] = getCanvasPos(e);
-  const [row, col] = xyToCell(x, y);
+function placeFromEvent(e) {
+  const pos = getCanvasPos(e);
+  if (!pos) return;
+  const [row, col] = xyToCell(pos[0], pos[1]);
   makeMove(row, col);
-});
+}
+
+canvas.addEventListener('click', placeFromEvent);
 
 canvas.addEventListener('touchend', e => {
+  // Suppresses the synthetic click that would otherwise replay this tap.
   e.preventDefault();
-  const [x, y] = getCanvasPos(e);
-  const [row, col] = xyToCell(x, y);
-  makeMove(row, col);
+  placeFromEvent(e);
 }, { passive: false });
 
 newBtn.addEventListener('click',   newGame);

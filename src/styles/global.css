@@ -342,6 +342,9 @@ body.dark .dropdown-item .check-mark {
   flex: 1 1 300px;
   display: flex;
   justify-content: center;
+  /* Without this the default `stretch` overrides the canvas's `height: auto`
+     and squashes the board out of square once the layout turns into a column. */
+  align-items: flex-start;
 }
 
 .board-canvas {
@@ -352,6 +355,7 @@ body.dark .dropdown-item .check-mark {
   touch-action: none;
   max-width: 100%;
   height: auto;
+  aspect-ratio: 1;   /* the board is square whatever the layout does */
 }
 
 /* ─── Mobile ───────────────────────────────────────────────────────────────── */
@@ -371,6 +375,12 @@ body.dark .dropdown-item .check-mark {
   }
 
   .control-group { min-width: 130px; }
+
+  /* The column layout does not stretch its items, and the canvas sizes itself
+     from this element's width, so give it a definite one to measure. */
+  .board-section {
+    width: 100%;
+  }
 
   .history-panel {
     width: 100%;
