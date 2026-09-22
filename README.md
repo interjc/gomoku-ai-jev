@@ -46,7 +46,7 @@ npx wrangler login
 npm run deploy
 ```
 
-The Worker name is `gomoku-ai`. The first deploy is available on your `workers.dev` subdomain. Attach a custom domain in the Cloudflare dashboard when you want one.
+The Worker name is `gomoku-ai-jev`. The first deploy is available on your `workers.dev` subdomain. Attach a custom domain in the Cloudflare dashboard when you want one.
 
 For Workers Builds, use build command `npm run build` and deploy command `npx wrangler deploy`.
 
@@ -78,7 +78,7 @@ Move ordering (trying high-scoring moves first) further improves alpha-beta cuto
 ## Project Structure
 
 ```
-gomoku-ai/
+gomoku-ai-jev/
 ├── astro.config.mjs    Astro, output server, @astrojs/cloudflare
 ├── wrangler.jsonc      Worker name and static-asset binding
 ├── src/
