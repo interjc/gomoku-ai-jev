@@ -15,7 +15,7 @@ let currentPlayer = BLACK;
 let playerColor = BLACK;       // human is black by default
 let difficulty = 'hard';
 let gameOver = false;
-let lang = 'ja';
+let lang = 'en';
 let dark = false;
 let moveHistory = [];          // [{row, col, player}]
 let winLine = null;
@@ -168,7 +168,8 @@ function updateUI() {
   document.getElementById('app-title').textContent = t(lang, 'title');
   newBtn.textContent        = t(lang, 'newGame');
   undoBtn.textContent       = t(lang, 'undo');
-  langBtn.textContent       = t(lang, 'langToggle');
+  langBtn.textContent       = t(lang, 'langLabel');
+  langBtn.setAttribute('aria-label', lang === 'ja' ? '日本語' : 'English');
   themeBtn.textContent      = dark ? t(lang, 'themeLight') : t(lang, 'themeDark');
   document.getElementById('label-difficulty').textContent = t(lang, 'difficulty');
   document.getElementById('label-color').textContent      = t(lang, 'playerColor');
@@ -278,6 +279,11 @@ async function playAITurn(boardAtStart, aiColor) {
         board: boardAtStart,
         player: aiColor,
         difficulty,
+        history: moveHistory.map(mv => ({
+          row: mv.row,
+          col: mv.col,
+          player: mv.player,
+        })),
       }),
     });
     if (!res.ok) throw new Error('move request failed');

@@ -4,7 +4,7 @@
 
 export const translations = {
   ja: {
-    title:          '五目並べ AI',
+    title:          'Gomoku AI JEV',
     newGame:        '新しいゲーム',
     undo:           '待った',
     difficulty:     '難易度',
@@ -22,13 +22,13 @@ export const translations = {
     draw:           '引き分け',
     history:        '棋譜',
     moveN:          (n) => `${n} 手目`,
-    langToggle:     'EN',
+    langLabel:      'JA',
     themeToggle:    '🌙',
     themeDark:      '🌙',
     themeLight:     '☀️',
   },
   en: {
-    title:          'Gomoku AI',
+    title:          'Gomoku AI JEV',
     newGame:        'New Game',
     undo:           'Undo',
     difficulty:     'Difficulty',
@@ -46,7 +46,7 @@ export const translations = {
     draw:           'Draw',
     history:        'Move History',
     moveN:          (n) => `Move ${n}`,
-    langToggle:     'JA',
+    langLabel:      'EN',
     themeToggle:    '🌙',
     themeDark:      '🌙',
     themeLight:     '☀️',

@@ -4,50 +4,61 @@ import '../styles/global.css';
 export const prerender = true;
 ---
 
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>五目並べ AI</title>
+  <title>Gomoku AI JEV</title>
 </head>
 <body>
   <header class="app-header">
-    <h1 id="app-title">五目並べ AI</h1>
+    <h1 id="app-title">Gomoku AI JEV</h1>
     <div class="header-actions">
-      <button id="btn-lang" class="btn btn-sm">EN</button>
+      <button id="btn-lang" class="btn btn-sm" aria-label="English">EN</button>
       <button id="btn-theme" class="btn btn-sm">🌙</button>
+      <a
+        class="btn btn-sm btn-icon"
+        href="https://github.com/interjc/gomoku-ai-jev"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="GitHub"
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+        </svg>
+      </a>
     </div>
   </header>
 
   <main class="app-main">
     <aside class="controls">
       <div class="control-group">
-        <label id="label-difficulty" for="sel-difficulty">難易度</label>
+        <label id="label-difficulty" for="sel-difficulty">Difficulty</label>
         <select id="sel-difficulty" class="select">
-          <option value="easy">初級</option>
-          <option value="medium">中級</option>
-          <option value="hard" selected>上級</option>
+          <option value="easy">Easy</option>
+          <option value="medium">Medium</option>
+          <option value="hard" selected>Hard</option>
         </select>
       </div>
 
       <div class="control-group">
-        <label id="label-color" for="sel-color">手番</label>
+        <label id="label-color" for="sel-color">Play as</label>
         <select id="sel-color" class="select">
-          <option value="black">黒（先手）</option>
-          <option value="white">白（後手）</option>
+          <option value="black">Black (first)</option>
+          <option value="white">White (second)</option>
         </select>
       </div>
 
       <div class="button-row">
-        <button id="btn-new" class="btn btn-primary">新しいゲーム</button>
-        <button id="btn-undo" class="btn">待った</button>
+        <button id="btn-new" class="btn btn-primary">New Game</button>
+        <button id="btn-undo" class="btn">Undo</button>
       </div>
 
-      <div id="status" class="status-text">あなたの番</div>
-      <div id="thinking" class="thinking" hidden>AI 考え中…</div>
+      <div id="status" class="status-text">Your turn</div>
+      <div id="thinking" class="thinking" hidden>AI thinking…</div>
 
       <section class="history-panel">
-        <h2 id="history-title" class="history-title">棋譜</h2>
+        <h2 id="history-title" class="history-title">Move History</h2>
         <ol id="history-list" class="history-list"></ol>
       </section>
     </aside>

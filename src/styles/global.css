@@ -75,6 +75,20 @@ body {
 
 .btn-sm { padding: 5px 10px; font-size: 0.82rem; }
 
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  line-height: 0;
+  text-decoration: none;
+}
+.btn-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
 .button-row {
   display: flex;
   gap: 8px;

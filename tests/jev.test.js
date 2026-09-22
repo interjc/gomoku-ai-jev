@@ -55,8 +55,11 @@ describe('chooseMove', () => {
       player: WHITE,
       difficulty: 'hard',
       minConfidence: 0.5,
+      history: [{ row: 7, col: 7, player: BLACK }],
       ask: async (request) => {
-        assert.equal(request.criteria.r7c8.includes('I8'), true);
+        assert.equal(request.criteria.r7c8.point, 'I8');
+        assert.equal(request.state.history.length, 1);
+        assert.equal(request.state.history[0].point, 'H8');
         return { choice: 'r7c8', confidence: 0.8 };
       },
     });
@@ -101,17 +104,25 @@ describe('chooseMove', () => {
     assert.equal(move.source, 'minimax');
   });
 
-  it('does not call Jev on easy', async () => {
+  it('asks Jev on easy with the move history and no search scores', async () => {
     const board = placeStone(createBoard(), 7, 7, BLACK);
-    let asked = false;
+    let seen = null;
     const move = await chooseMove({
       board,
       player: WHITE,
       difficulty: 'easy',
-      ask: async () => { asked = true; return { choice: 'r7c8', confidence: 1 }; },
+      history: [{ row: 7, col: 7, player: BLACK }],
+      ask: async (request) => {
+        seen = request;
+        return { choice: 'r7c8', confidence: 1 };
+      },
     });
-    assert.equal(asked, false);
-    assert.equal(move.source, 'local');
+    assert.equal(seen.state.difficulty, 'easy');
+    assert.equal(seen.state.history[0].point, 'H8');
+    assert.equal(seen.state.evaluation, undefined);
+    assert.equal(seen.criteria.r7c8.touches_latest_stone, true);
+    assert.equal(seen.criteria.r7c8.evaluation_after_move, undefined);
+    assert.equal(move.source, 'jev');
   });
 
   it('does not call Jev when no key-backed ask function is provided', async () => {
@@ -128,9 +139,33 @@ describe('chooseMove', () => {
 describe('buildJevRequest', () => {
   it('names candidate points as r{row}c{col}', () => {
     const board = placeStone(createBoard(), 7, 7, BLACK);
-    const request = buildJevRequest(board, WHITE);
+    const request = buildJevRequest(board, WHITE, {
+      history: [{ row: 7, col: 7, player: BLACK }],
+    });
     assert.equal(parseMoveKey('r7c8')[0], 7);
-    assert.ok(request.criteria.r7c8);
+    assert.equal(request.criteria.r7c8.point, 'I8');
     assert.equal(request.state.side_to_move, 'white (O)');
+    assert.equal(request.state.history[0].point, 'H8');
+  });
+
+  it('gives medium the pattern score and hard the opponent reply', () => {
+    const board = placeStone(createBoard(), 7, 7, BLACK);
+    const history = [{ row: 7, col: 7, player: BLACK }];
+    const medium = buildJevRequest(board, WHITE, { difficulty: 'medium', history });
+    const hard = buildJevRequest(board, WHITE, { difficulty: 'hard', history });
+    assert.equal(typeof medium.criteria.r7c8.evaluation_after_move, 'number');
+    assert.equal(medium.criteria.r7c8.opponent_reply, undefined);
+    assert.match(medium.instructions.standard, /depth-2/);
+    assert.equal(typeof hard.criteria.r7c8.evaluation_after_opponent_reply, 'number');
+    assert.equal(typeof hard.criteria.r7c8.opponent_reply, 'string');
+    assert.match(hard.instructions.standard, /depth-4/);
+  });
+
+  it('drops a history entry that does not match the board', () => {
+    const board = placeStone(createBoard(), 7, 7, BLACK);
+    const request = buildJevRequest(board, WHITE, {
+      history: [{ row: 7, col: 7, player: WHITE }],
+    });
+    assert.deepEqual(request.state.history, []);
   });
 });

@@ -47,6 +47,7 @@ export async function POST({ request }) {
     board: body.board,
     player: body.player,
     difficulty,
+    history: body.history,
     minConfidence: config.minConfidence,
     ask,
   });

@@ -1,4 +1,4 @@
-# Gomoku AI — 五目並べ AI
+# Gomoku AI JEV
 
 A browser-based Gomoku (five-in-a-row) game. Jev chooses the move on the Worker, and the page runs minimax when Jev does not return a cell. The site is an Astro app deployed to Cloudflare Workers.
 
@@ -9,13 +9,14 @@ A browser-based Gomoku (five-in-a-row) game. Jev chooses the move on the Worker,
 - **15×15 board** with canvas rendering (wooden board, gradient stones)
 - **Player vs AI** — play as black or white
 - **3 difficulty levels**
-  - Easy: a random nearby move in the browser
-  - Medium and hard: Jev chooses among nearby empty points; the page falls back to minimax (depth 2 or 4) when Jev does not return a cell
+  - Easy: Jev plays a beginner move next to the latest stone. If it returns no cell, the page picks a random nearby point
+  - Medium: Jev uses the depth-2 pattern scores. The fallback search depth is 2
+  - Hard: Jev uses the depth-4 evaluator, including the opponent's best reply. The fallback search depth is 4
 - **Win detection** — horizontal, vertical, both diagonals
 - **Undo** — rewind the last 2 moves (yours + AI's)
 - **Move history** panel with algebraic notation
 - **AI thinking indicator** with async rendering
-- **Japanese / English UI** toggle
+- **English / Japanese UI**. The header shows the active language. English is the default.
 - **Dark / light theme**
 - **Mobile-friendly** — touch support on canvas
 
@@ -55,15 +56,21 @@ The Worker name is `gomoku-ai-jev`. The first deploy is available on your `worke
 
 For Workers Builds, use build command `pnpm run build` and deploy command `pnpm exec wrangler deploy`.
 
+## Jev
+
+[Jev](https://docs.typesafe.ai/introduction) is TypeSafe's flagship System One model. It does not write a reply or search a game tree. A program sends the current facts as `state` and asks a typed question. Jev returns a structured answer the program can branch on.
+
+Each turn sends Jev the board and the full move list in `history`. The question is one [Choice](https://docs.typesafe.ai/primitives/choice) over the empty points near existing stones. Easy, medium, and hard use different instructions. Medium and hard also attach the original pattern weights: five 100000, open four 10000, closed four 1000, open three 1000, closed three 100, open two 100, with defense counted as `opponentScore × 1.1`. Hard adds the opponent's best reply, the same one-ply look used to order the depth-4 search. An immediate five, or a block of the opponent's immediate five, is still played in code on medium and hard. If the request fails or the point is illegal, the page plays the old minimax move locally.
+
+The Worker calls `jev-latest` through the [TypeSafe JavaScript SDK](https://docs.typesafe.ai/sdk/javascript). That alias currently resolves to `jev-1.13.0`. The API key stays in `.dev.vars` locally and in a Worker secret in production.
+
 ## How the AI Works
 
 Each AI turn asks `POST /api/move` on the Worker.
 
 1. On medium and hard, code plays an immediate five, or blocks the opponent's immediate five.
-2. Otherwise Jev chooses one empty point from the cells within two intersections of a stone. The request is one Choice question. The API key stays on the Worker.
-3. Easy mode, a missing key, a failed request, an illegal point, or confidence below `JEV_MIN_CONFIDENCE` returns no cell. The page then runs `getAIMove()` in `src/lib/ai.js`. That search stays in the browser. The default threshold is `0`: a Choice over many legal points spreads probability, and the top legal point is still the move. Raise `JEV_MIN_CONFIDENCE` when you want uncertain picks to use minimax instead.
-
-### Board evaluation
+2. Otherwise Jev chooses one empty point. The state includes every move so far. The question text follows the selected difficulty, and medium and hard candidates carry the pattern-evaluation notes.
+3. A missing key, a failed request, an illegal point, or confidence below `JEV_MIN_CONFIDENCE` returns no cell. The page then runs `getAIMove()` in `src/lib/ai.js` at that difficulty. The default threshold is `0`. Raise it when you want uncertain picks to use minimax instead.
 
 ### Board evaluation
 
