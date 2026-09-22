@@ -5,6 +5,7 @@
  *   easy   — no search at all, only the current position
  *   medium — depth 2, the original medium setting
  *   hard   — iterative deepening to depth 8 with threat extension
+ *   master — the hard search, after classical shapes and the opening book
  *
  * The search keeps a mutable flat board plus a running pattern score per
  * player. Placing a stone only rescores the four lines through that cell, so a
@@ -17,6 +18,7 @@ import {
   BOARD_SIZE, EMPTY, BLACK, WHITE,
   getNearbyCells,
 } from './gomoku.js';
+import { findMasterTactic, lookupBook } from './classic.js';
 
 const N = BOARD_SIZE;
 const CELL_COUNT = N * N;
@@ -40,9 +42,10 @@ const DC = [1, 0, 1, -1];
  * spend following forced threats.
  */
 export const DIFFICULTY = {
-  easy:   { maxDepth: 0, width: 0,  nodeBudget: 0,       extensionLimit: 0, forced: false },
-  medium: { maxDepth: 2, width: 12, nodeBudget: 40_000,  extensionLimit: 0, forced: true  },
-  hard:   { maxDepth: 8, width: 12, nodeBudget: 220_000, extensionLimit: 8, forced: true  },
+  easy:   { maxDepth: 0, width: 0,  nodeBudget: 0,       extensionLimit: 0, forced: false, classic: false },
+  medium: { maxDepth: 2, width: 12, nodeBudget: 40_000,  extensionLimit: 0, forced: true,  classic: false },
+  hard:   { maxDepth: 8, width: 12, nodeBudget: 220_000, extensionLimit: 8, forced: true,  classic: false },
+  master: { maxDepth: 8, width: 12, nodeBudget: 220_000, extensionLimit: 8, forced: true,  classic: true  },
 };
 
 export function difficultyProfile(difficulty, overrides = {}) {
@@ -671,7 +674,20 @@ export function getAIMove(board, player, difficulty = 'hard', overrides = {}) {
     if (block) return block;
   }
 
-  const result = searchMove(board, player, cfg);
+  let searchCfg = cfg;
+  if (cfg.classic) {
+    const tactic = findMasterTactic(board, player);
+    if (tactic) return [tactic.row, tactic.col];
+    const book = lookupBook(board);
+    if (book?.prescribe && book.next.length) {
+      const rootMoves = book.next
+        .filter(move => board[move.row][move.col] === EMPTY)
+        .map(move => [move.row, move.col]);
+      if (rootMoves.length) searchCfg = { ...cfg, rootMoves };
+    }
+  }
+
+  const result = searchMove(board, player, searchCfg);
   if (result.row === null) return moves[Math.floor(Math.random() * moves.length)];
   return [result.row, result.col];
 }

@@ -215,9 +215,7 @@ function updateUI() {
   themeBtn.textContent      = dark ? t(lang, 'themeLight') : t(lang, 'themeDark');
   document.getElementById('label-difficulty').textContent = t(lang, 'difficulty');
   document.getElementById('label-color').textContent      = t(lang, 'playerColor');
-  diffSel.options[0].text  = t(lang, 'easy');
-  diffSel.options[1].text  = t(lang, 'medium');
-  diffSel.options[2].text  = t(lang, 'hard');
+  for (const opt of diffSel.options) opt.text = t(lang, opt.value);
   colorSel.options[0].text = t(lang, 'black');
   colorSel.options[1].text = t(lang, 'white');
   document.getElementById('history-title').textContent = t(lang, 'history');
@@ -324,6 +322,7 @@ const FALLBACK_LIMITS = {
   easy:   {},
   medium: {},
   hard:   { maxDepth: 6, nodeBudget: 60_000 },
+  master: { maxDepth: 6, nodeBudget: 60_000 },
 };
 
 async function playAITurn(boardAtStart, aiColor) {

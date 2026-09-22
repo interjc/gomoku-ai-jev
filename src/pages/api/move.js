@@ -38,7 +38,7 @@ export async function POST({ request }) {
     return json({ error: 'Invalid player' }, 400);
   }
 
-  const difficulty = ['easy', 'medium', 'hard'].includes(body.difficulty)
+  const difficulty = ['easy', 'medium', 'hard', 'master'].includes(body.difficulty)
     ? body.difficulty
     : 'hard';
   const config = readJevConfig(env);

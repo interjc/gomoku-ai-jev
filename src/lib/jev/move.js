@@ -12,10 +12,15 @@
  *            candidate and hands Jev the ones it cannot separate, each with the
  *            verified line behind it. When Jev is torn between the top two, a
  *            second round re-searches just those two deeper and asks again.
+ *   master — hard's search, after classical shapes (jump fours, four-threes,
+ *            double threes, continuous fours) and the 26 opening records.
+ *            Jev sees that reading, and in the opening it chooses among the
+ *            recorded next stones.
  *
- * Immediate wins and blocks stay in code above easy. On hard, Jev only ever
- * chooses among moves the deep search rates as near-equal, so the level is at
- * least as strong as the engine while Jev decides what the engine cannot.
+ * Immediate wins and blocks stay in code above easy. On hard and master, Jev
+ * only ever chooses among moves the deep search rates as near-equal, so the
+ * level is at least as strong as the engine while Jev decides what the engine
+ * cannot. Master plays a shape the search cannot see before that question.
  */
 
 import {
@@ -25,6 +30,7 @@ import {
 import {
   WIN_SCORE, searchMove, findWinningMove, describePlacement,
 } from '../ai.js';
+import { classifyPlacement, findMasterTactic, lookupBook } from '../classic.js';
 
 const CHOICE_LIMIT = 255;
 
@@ -53,6 +59,17 @@ export const LEVELS = {
     forced: true,
     // A gap this small is under one closed three — inside it the search has no
     // real opinion, which is exactly where Jev's judgement is worth having.
+    band: { absolute: 300, relative: 0.2 },
+    runoff: {
+      search: { maxDepth: 10, width: 8, nodeBudget: 160_000, extensionLimit: 10 },
+      confidence: 0.6,
+      margin: 0.1,
+    },
+  },
+  master: {
+    search: { maxDepth: 8, width: 12, nodeBudget: 220_000, extensionLimit: 8 },
+    shortlist: 12,
+    forced: true,
     band: { absolute: 300, relative: 0.2 },
     runoff: {
       search: { maxDepth: 10, width: 8, nodeBudget: 160_000, extensionLimit: 10 },
@@ -182,6 +199,32 @@ function hardNote(board, player, entry, rank, best, depth) {
   };
 }
 
+/** Hard's note, plus the static shape and whether a classical record names the point. */
+function masterNote(board, player, entry, rank, best, depth, bookMoves) {
+  const note = hardNote(board, player, entry, rank, best, depth);
+  const recorded = bookMoves.get(moveKey(entry.row, entry.col));
+  return {
+    ...note,
+    classic: classifyPlacement(board, player, entry.row, entry.col),
+    book_move: Boolean(recorded),
+    book_opening: recorded?.name ?? null,
+  };
+}
+
+function bookState(book) {
+  if (!book) return null;
+  const state = { label: book.label };
+  if (book.opening) {
+    state.opening = book.opening.name;
+    state.chinese = book.opening.chinese;
+    state.family = book.opening.family;
+    state.balance = book.opening.balance;
+    state.recorded = book.opening.recorded;
+    state.idea = book.opening.idea;
+  }
+  return state;
+}
+
 /** Keep history entries that match a stone actually on the board. */
 export function readHistory(board, history) {
   if (!Array.isArray(history)) return [];
@@ -223,12 +266,23 @@ const INSTRUCTIONS = {
     standard: 'Hard searched `searched_plies` plies deep with alpha-beta, extending forcing lines further, and every candidate offered here is one the search could not separate from the best. `best_line` is the line it verified, starting with the candidate itself. `score_after_line` is the position at the end of that line, scored with the weights in `evaluation`.',
     focus: 'Play to win. Never pick a candidate whose `loses_by_force` is true, and always pick one whose `wins_by_force` is true. Otherwise prefer the candidate that keeps the initiative: more entries in `forcing_threats`, a `best_line` that keeps making threats the opponent must answer, and a `pattern_made` that builds toward an open four. Treat a small `score_behind_best` as no difference at all, and use the lines and the running shape in `history` to break the tie.',
   },
+  master: {
+    question: 'Which empty point should `side_to_move` play at master strength?',
+    standard: 'Master searched `searched_plies` plies deep, the same way hard does, then added two readings the consecutive-stone score does not have. `classic` is a length-5 window: open-four and double-four win at once, four-three and double-three are forced wins in freestyle, four is one threat the opponent can answer, open-three becomes an open four if it is left. `book` is the classical opening on the board, and `book_move` marks a recorded next stone of that opening.',
+    focus: 'Play to win. Never pick `loses_by_force`. Always pick `wins_by_force`, or a `classic.combination` of open-four or double-four. Prefer four-three or double-three over a quiet point. When no shape wins, prefer `book_move`. Trust `classic` over `pattern_made` when they disagree. Treat a small `score_behind_best` as no difference.',
+  },
 };
 
 const RUNOFF_INSTRUCTIONS = {
   question: 'These two points survived the first pass. Which one should `side_to_move` play?',
   standard: 'Both were re-searched deeper than before, to `searched_plies` plies, following forcing lines further still. `best_line` is the refreshed line behind each point.',
   focus: 'Compare the two lines directly. Prefer the point whose line leaves the opponent answering threats rather than making them, and which reaches an open four or a double threat sooner. Never pick one whose `loses_by_force` is true.',
+};
+
+const MASTER_RUNOFF = {
+  question: 'These two points survived the first pass. Which one should `side_to_move` play?',
+  standard: 'Both were re-searched deeper. `classic` and `book_move` are the same static shape and recorded opening as the first pass. `best_line` is the refreshed line.',
+  focus: 'Prefer the line that keeps the opponent answering threats. Prefer a winning `classic.combination`, then `book_move`. Never pick `loses_by_force`.',
 };
 
 const EVALUATION = {
@@ -247,12 +301,13 @@ const EVALUATION = {
  * @param {number[][]} board
  * @param {number} player
  * @param {object} [options]
- * @param {'easy'|'medium'|'hard'} [options.difficulty]
+ * @param {'easy'|'medium'|'hard'|'master'} [options.difficulty]
  * @param {Array<{row: number, col: number, player: number}>} [options.history]
  * @param {Array<{row: number, col: number, score: number, line: Array<[number, number]>}>} [options.ranked]
  *   Search results for the points to offer. Omitted on easy.
  * @param {number} [options.depth] Plies the search completed.
  * @param {boolean} [options.runoff] Use the deeper second-round wording.
+ * @param {object | null} [options.book] Opening lookup. Master only; looked up when omitted.
  */
 export function buildJevRequest(board, player, {
   difficulty = 'hard',
@@ -260,11 +315,18 @@ export function buildJevRequest(board, player, {
   ranked = null,
   depth = 0,
   runoff = false,
+  book = undefined,
 } = {}) {
   const level = LEVELS[difficulty] ? difficulty : 'hard';
   const record = readHistory(board, history);
   const latest = record[record.length - 1] ?? null;
   const criteria = {};
+  const opening = level === 'master' ? (book === undefined ? lookupBook(board) : book) : null;
+  const bookMoves = new Map();
+  for (const move of opening?.next ?? []) {
+    const key = moveKey(move.row, move.col);
+    if (!bookMoves.has(key)) bookMoves.set(key, move);
+  }
 
   if (level === 'easy' || !ranked) {
     const points = candidateMoves(board).slice(0, LEVELS[level].shortlist);
@@ -274,6 +336,11 @@ export function buildJevRequest(board, player, {
   } else if (level === 'medium') {
     ranked.forEach((entry, i) => {
       criteria[moveKey(entry.row, entry.col)] = mediumNote(board, player, entry, i + 1);
+    });
+  } else if (level === 'master') {
+    const best = ranked[0]?.score ?? 0;
+    ranked.forEach((entry, i) => {
+      criteria[moveKey(entry.row, entry.col)] = masterNote(board, player, entry, i + 1, best, depth, bookMoves);
     });
   } else {
     const best = ranked[0]?.score ?? 0;
@@ -293,12 +360,13 @@ export function buildJevRequest(board, player, {
     state.evaluation = EVALUATION;
     state.searched_plies = depth;
   }
+  if (opening) state.book = bookState(opening);
 
-  return {
-    state,
-    instructions: runoff ? RUNOFF_INSTRUCTIONS : INSTRUCTIONS[level],
-    criteria,
-  };
+  const instructions = runoff
+    ? (level === 'master' ? MASTER_RUNOFF : RUNOFF_INSTRUCTIONS)
+    : INSTRUCTIONS[level];
+
+  return { state, instructions, criteria };
 }
 
 // ── Shortlisting and blending ─────────────────────────────────────────────────
@@ -364,7 +432,7 @@ function ruleMove(row, col) {
  * @param {object} options
  * @param {number[][]} options.board
  * @param {number} options.player
- * @param {'easy'|'medium'|'hard'} [options.difficulty]
+ * @param {'easy'|'medium'|'hard'|'master'} [options.difficulty]
  * @param {Array<{row: number, col: number, player: number}>} [options.history]
  * @param {number} [options.minConfidence]
  * @param {(request: object) => Promise<{choice?: string, confidence?: number,
@@ -389,6 +457,23 @@ export async function chooseMove({
     if (block) return ruleMove(block[0], block[1]);
   }
 
+  // Master settles jump fours, four-threes and continuous fours before search.
+  let book = null;
+  if (level === 'master') {
+    const tactic = findMasterTactic(board, player);
+    if (tactic && isValidMove(board, tactic.row, tactic.col)) {
+      return {
+        row: tactic.row,
+        col: tactic.col,
+        source: 'classic',
+        reason: tactic.reason,
+        confidence: null,
+        depth: 0,
+      };
+    }
+    book = lookupBook(board);
+  }
+
   const legal = candidateMoves(board);
   if (legal.length === 0) {
     const centre = Math.floor(BOARD_SIZE / 2);
@@ -397,12 +482,20 @@ export async function chooseMove({
   }
   if (legal.length === 1) return ruleMove(legal[0][0], legal[0][1]);
 
-  // 2. Look ahead as far as this level allows.
+  // 2. Look ahead as far as this level allows. In a recorded opening the root
+  //    is the recorded next stones, so the search ranks those and nothing else.
   let ranked = null;
   let depth = 0;
   let nodes = 0;
   if (cfg.search) {
-    const result = searchMove(board, player, cfg.search);
+    const searchCfg = { ...cfg.search };
+    if (book?.prescribe && book.next.length) {
+      const rootMoves = book.next
+        .filter(move => isValidMove(board, move.row, move.col))
+        .map(move => [move.row, move.col]);
+      if (rootMoves.length) searchCfg.rootMoves = rootMoves;
+    }
+    const result = searchMove(board, player, searchCfg);
     if (result.row !== null) {
       ranked = result.ranked;
       depth = result.depth;
@@ -427,7 +520,7 @@ export async function chooseMove({
   try {
     // 3. Ask Jev to choose among what the search could not separate.
     const request = buildJevRequest(board, player, {
-      difficulty: level, history, ranked: offered.length > 0 ? offered : null, depth,
+      difficulty: level, history, ranked: offered.length > 0 ? offered : null, depth, book,
     });
     const answer = await ask(request);
     const confidence = Number(answer?.confidence);
@@ -465,7 +558,7 @@ export async function chooseMove({
         });
         if (deeper.row !== null && deeper.ranked.length === 2) {
           const second = await ask(buildJevRequest(board, player, {
-            difficulty: level, history, ranked: deeper.ranked, depth: deeper.depth, runoff: true,
+            difficulty: level, history, ranked: deeper.ranked, depth: deeper.depth, runoff: true, book,
           }));
           const top = blend(deeper.ranked, second)[0];
           if (isValidMove(board, top.row, top.col)) {
