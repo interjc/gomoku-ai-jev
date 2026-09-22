@@ -1,22 +1,25 @@
-<!DOCTYPE html>
+---
+import '../styles/global.css';
+
+export const prerender = true;
+---
+
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>五目並べ AI</title>
-  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="app-header">
     <h1 id="app-title">五目並べ AI</h1>
     <div class="header-actions">
-      <button id="btn-lang"  class="btn btn-sm">EN</button>
+      <button id="btn-lang" class="btn btn-sm">EN</button>
       <button id="btn-theme" class="btn btn-sm">🌙</button>
     </div>
   </header>
 
   <main class="app-main">
-    <!-- Left: controls + status -->
     <aside class="controls">
       <div class="control-group">
         <label id="label-difficulty" for="sel-difficulty">難易度</label>
@@ -36,7 +39,7 @@
       </div>
 
       <div class="button-row">
-        <button id="btn-new"  class="btn btn-primary">新しいゲーム</button>
+        <button id="btn-new" class="btn btn-primary">新しいゲーム</button>
         <button id="btn-undo" class="btn">待った</button>
       </div>
 
@@ -49,12 +52,13 @@
       </section>
     </aside>
 
-    <!-- Right: board -->
     <section class="board-section">
       <canvas id="board-canvas" class="board-canvas"></canvas>
     </section>
   </main>
 
-  <script type="module" src="src/main.js"></script>
+  <script>
+    import '../scripts/main.js';
+  </script>
 </body>
 </html>

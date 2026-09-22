@@ -5,7 +5,7 @@ import {
   BOARD_SIZE, EMPTY, BLACK, WHITE,
   createBoard, placeStone, isValidMove,
   checkWin, getWinLine, isFull, getNearbyCells,
-} from '../src/gomoku.js';
+} from '../src/lib/gomoku.js';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function placeRow(board, row, colStart, player, len) {

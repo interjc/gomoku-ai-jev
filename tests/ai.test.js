@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { BOARD_SIZE, EMPTY, BLACK, WHITE, createBoard, placeStone } from '../src/gomoku.js';
-import { getAIMove, evaluateBoard, scorePattern } from '../src/ai.js';
+import { BOARD_SIZE, EMPTY, BLACK, WHITE, createBoard, placeStone } from '../src/lib/gomoku.js';
+import { getAIMove, evaluateBoard, scorePattern } from '../src/lib/ai.js';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function placeRow(board, row, colStart, player, len) {

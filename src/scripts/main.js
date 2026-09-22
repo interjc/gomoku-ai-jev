@@ -5,9 +5,9 @@
 import {
   BOARD_SIZE, EMPTY, BLACK, WHITE,
   createBoard, placeStone, isValidMove, checkWin, getWinLine, isFull,
-} from './gomoku.js';
-import { getAIMove } from './ai.js';
-import { t } from './i18n.js';
+} from '../lib/gomoku.js';
+import { getAIMove } from '../lib/ai.js';
+import { t } from '../lib/i18n.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let board = createBoard();
@@ -162,7 +162,9 @@ function drawStone(row, col, player) {
 
 // ── UI text ───────────────────────────────────────────────────────────────────
 function updateUI() {
+  document.documentElement.lang = lang;
   document.title            = t(lang, 'title');
+  thinkEl.textContent       = t(lang, 'thinking');
   document.getElementById('app-title').textContent = t(lang, 'title');
   newBtn.textContent        = t(lang, 'newGame');
   undoBtn.textContent       = t(lang, 'undo');
