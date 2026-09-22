@@ -1,6 +1,6 @@
 # Gomoku AI — 五目並べ AI
 
-A browser-based Gomoku (five-in-a-row) game with an AI opponent powered by minimax search and alpha-beta pruning. The search runs in the page. The site is an Astro app deployed to Cloudflare Workers.
+A browser-based Gomoku (five-in-a-row) game. Jev chooses the move on the Worker, and the page runs minimax when Jev does not return a cell. The site is an Astro app deployed to Cloudflare Workers.
 
 **Live demo:** https://sen.ltd/portfolio/gomoku-ai/
 
@@ -9,9 +9,8 @@ A browser-based Gomoku (five-in-a-row) game with an AI opponent powered by minim
 - **15×15 board** with canvas rendering (wooden board, gradient stones)
 - **Player vs AI** — play as black or white
 - **3 difficulty levels**
-  - Easy: greedy random moves near existing stones
-  - Medium: minimax depth 2
-  - Hard: minimax depth 4 with alpha-beta pruning
+  - Easy: a random nearby move in the browser
+  - Medium and hard: Jev chooses among nearby empty points; the page falls back to minimax (depth 2 or 4) when Jev does not return a cell
 - **Win detection** — horizontal, vertical, both diagonals
 - **Undo** — rewind the last 2 moves (yours + AI's)
 - **Move history** panel with algebraic notation
@@ -23,36 +22,48 @@ A browser-based Gomoku (five-in-a-row) game with an AI opponent powered by minim
 ## Development
 
 ```sh
-npm install
-npm run dev
+bash scripts/dev.sh
 ```
 
-Vite (via Astro) serves the app at http://localhost:4321.
+That installs dependencies with pnpm and starts Astro at http://localhost:4321. `pnpm run dev` starts the server on its own.
 
 ```sh
-npm test
-npm run build
-npm run preview
+pnpm test
+pnpm run build
+pnpm run preview
 ```
 
-Tests use Node.js built-in `node:test` (Node 20+).
+Tests use Node.js built-in `node:test` (Node 24+).
 
 ## Deploy
 
-The production target is a Cloudflare Worker, using the same adapter entry as a typical Astro Workers app. There are no KV, D1, or R2 bindings. `npm run deploy` builds the site and uploads it with Wrangler.
+The production target is a Cloudflare Worker, using the same adapter entry as a typical Astro Workers app. There are no KV, D1, or R2 bindings. `pnpm run deploy` builds the site and uploads it with Wrangler.
 
 ```sh
-npx wrangler login
-npm run deploy
+pnpm exec wrangler login
+pnpm run deploy
+pnpm exec wrangler secret put TYPESAFE_API_KEY
+```
+
+Model URL, model name, and `JEV_MIN_CONFIDENCE` are public `vars` in `wrangler.jsonc`. The API key is not. For local development, put it in `.dev.vars` (gitignored):
+
+```
+TYPESAFE_API_KEY=your-local-key
 ```
 
 The Worker name is `gomoku-ai-jev`. The first deploy is available on your `workers.dev` subdomain. Attach a custom domain in the Cloudflare dashboard when you want one.
 
-For Workers Builds, use build command `npm run build` and deploy command `npx wrangler deploy`.
+For Workers Builds, use build command `pnpm run build` and deploy command `pnpm exec wrangler deploy`.
 
 ## How the AI Works
 
-`getAIMove()` in `src/lib/ai.js` runs in the browser after the player moves. Nothing is sent to a server. The Worker only serves the page and its assets.
+Each AI turn asks `POST /api/move` on the Worker.
+
+1. On medium and hard, code plays an immediate five, or blocks the opponent's immediate five.
+2. Otherwise Jev chooses one empty point from the cells within two intersections of a stone. The request is one Choice question. The API key stays on the Worker.
+3. Easy mode, a missing key, a failed request, an illegal point, or confidence below `JEV_MIN_CONFIDENCE` returns no cell. The page then runs `getAIMove()` in `src/lib/ai.js`. That search stays in the browser. The default threshold is `0`: a Choice over many legal points spreads probability, and the top legal point is still the move. Raise `JEV_MIN_CONFIDENCE` when you want uncertain picks to use minimax instead.
+
+### Board evaluation
 
 ### Board evaluation
 
@@ -83,7 +94,9 @@ gomoku-ai-jev/
 ├── wrangler.jsonc      Worker name and static-asset binding
 ├── src/
 │   ├── pages/
-│   │   └── index.astro Page shell
+│   │   ├── index.astro Page shell
+│   │   └── api/
+│   │       └── move.js Jev move route
 │   ├── styles/
 │   │   └── global.css  Layout, dark/light themes
 │   ├── scripts/
@@ -91,10 +104,12 @@ gomoku-ai-jev/
 │   └── lib/
 │       ├── gomoku.js   Board logic (immutable), win detection
 │       ├── ai.js       Minimax + alpha-beta pruning
-│       └── i18n.js     Japanese / English strings
+│       ├── i18n.js     Japanese / English strings
+│       └── jev/        Choice request and server-side Jev call
 ├── tests/
 │   ├── gomoku.test.js
-│   └── ai.test.js
+│   ├── ai.test.js
+│   └── jev.test.js
 └── assets/             Screenshots and media
 ```
 

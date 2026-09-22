@@ -6,5 +6,10 @@
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "binding": "ASSETS"
+  },
+  "vars": {
+    "TYPESAFE_BASE_URL": "https://api.typesafe.ai",
+    "TYPESAFE_DEFAULT_MODEL": "jev-latest",
+    "JEV_MIN_CONFIDENCE": "0"
   }
 }

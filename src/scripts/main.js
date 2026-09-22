@@ -268,6 +268,41 @@ function checkGameEnd(row, col, player) {
   return false;
 }
 
+async function playAITurn(boardAtStart, aiColor) {
+  let move = null;
+  try {
+    const res = await fetch('/api/move', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        board: boardAtStart,
+        player: aiColor,
+        difficulty,
+      }),
+    });
+    if (!res.ok) throw new Error('move request failed');
+    const data = await res.json();
+    if (board !== boardAtStart || gameOver) return;
+    if (isValidMove(board, data.row, data.col)) move = [data.row, data.col];
+  } catch {
+    if (board !== boardAtStart || gameOver) return;
+  }
+
+  if (!move) {
+    if (board !== boardAtStart || gameOver) return;
+    move = getAIMove(board, aiColor, difficulty);
+  }
+
+  const [row, col] = move;
+  applyMove(row, col, aiColor);
+  aiBusy = false;
+  thinkEl.hidden = true;
+  if (!checkGameEnd(row, col, aiColor)) {
+    currentPlayer = playerColor;
+    updateStatus();
+  }
+}
+
 function doAIMove() {
   const aiColor = playerColor === BLACK ? WHITE : BLACK;
   if (currentPlayer !== aiColor || gameOver) return;
@@ -276,18 +311,8 @@ function doAIMove() {
   thinkEl.hidden = false;
   updateStatus();
 
-  // Yield to paint before heavy computation
-  setTimeout(() => {
-    const [r, c] = getAIMove(board, aiColor, difficulty);
-    applyMove(r, c, aiColor);
-    aiBusy = false;
-    thinkEl.hidden = true;
-
-    if (!checkGameEnd(r, c, aiColor)) {
-      currentPlayer = playerColor;
-      updateStatus();
-    }
-  }, 20);
+  const boardAtStart = board;
+  setTimeout(() => { void playAITurn(boardAtStart, aiColor); }, 20);
 }
 
 function undo() {

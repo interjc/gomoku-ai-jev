@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Gomoku game with minimax + alpha-beta pruning AI.",
+  "description": "Gomoku game. Jev chooses moves, with minimax as the fallback.",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
@@ -14,15 +17,11 @@
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.3.0",
+    "@typesafe-ai/sdk": "^0.6.0",
     "astro": "^7.3.1"
   },
   "devDependencies": {
     "wrangler": "^4.129.0"
   },
-  "license": "MIT",
-  "allowScripts": {
-    "workerd@1.20260921.1": true,
-    "esbuild@0.28.2": true,
-    "esbuild@0.28.1": true
-  }
+  "license": "MIT"
 }
