@@ -13,7 +13,7 @@
   --radius:    8px;
 }
 
-body.dark {
+html.dark {
   --bg:        #1a1210;
   --surface:   #241a14;
   --border:    #5a3e28;
@@ -151,7 +151,7 @@ body {
   background: rgba(192, 118, 58, 0.12);
 }
 
-body.dark .dropdown-item.active {
+html.dark .dropdown-item.active {
   color: var(--accent);
   background: rgba(212, 136, 74, 0.18);
 }
@@ -163,7 +163,7 @@ body.dark .dropdown-item.active {
   color: var(--accent-dk);
 }
 
-body.dark .dropdown-item .check-mark {
+html.dark .dropdown-item .check-mark {
   color: var(--accent);
 }
 

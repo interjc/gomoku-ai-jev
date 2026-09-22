@@ -8,21 +8,35 @@ import {
 } from '../lib/gomoku.js';
 import { getAIMove } from '../lib/ai.js';
 import { t } from '../lib/i18n.js';
+import { loadPrefs, commitManualChoice } from '../lib/prefs.js';
+
+function browserStorage() {
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// A manual change is saved immediately. A query param wins over storage on
+// the next load, so when the URL already carries this choice, update it too.
+function persistChoice(key, value) {
+  const result = commitManualChoice(location.href, browserStorage(), key, value);
+  if (!result.ok) return null;
+  if (result.href) history.replaceState(null, '', result.href);
+  return result.value;
+}
 
 // ── State ─────────────────────────────────────────────────────────────────────
+// URL, then localStorage, then the default. Loading does not write storage.
+const prefs = loadPrefs(location.search, browserStorage());
 let board = createBoard();
 let currentPlayer = BLACK;
-let playerColor = BLACK;       // human is black by default
-let difficulty = 'hard';
+let playerColor = prefs.color === 'white' ? WHITE : BLACK;
+let difficulty = prefs.difficulty;
 let gameOver = false;
-let lang = 'en';
-try {
-  const savedLang = localStorage.getItem('gomoku_lang');
-  if (savedLang && ['en', 'ja', 'zh'].includes(savedLang)) {
-    lang = savedLang;
-  }
-} catch {}
-let dark = false;
+let lang = prefs.lang;
+let dark = prefs.theme === 'dark';
 let moveHistory = [];          // [{row, col, player}]
 let winLine = null;
 let aiBusy = false;
@@ -189,11 +203,9 @@ function toggleLangDropdown() {
 }
 
 function setLanguage(newLang) {
-  if (!['en', 'ja', 'zh'].includes(newLang)) return;
-  lang = newLang;
-  try {
-    localStorage.setItem('gomoku_lang', lang);
-  } catch {}
+  const value = persistChoice('lang', newLang);
+  if (!value) return;
+  lang = value;
   updateUI();
   closeLangDropdown();
 }
@@ -447,12 +459,15 @@ canvas.addEventListener('touchend', e => {
 newBtn.addEventListener('click',   newGame);
 undoBtn.addEventListener('click',  undo);
 
-diffSel.addEventListener('change', e => {
-  difficulty = e.target.value;
+diffSel.addEventListener('change', () => {
+  const value = persistChoice('difficulty', diffSel.value);
+  if (value) difficulty = value;
 });
 
-colorSel.addEventListener('change', e => {
-  playerColor = e.target.value === 'white' ? WHITE : BLACK;
+colorSel.addEventListener('change', () => {
+  const value = persistChoice('color', colorSel.value);
+  if (!value) return;
+  playerColor = value === 'white' ? WHITE : BLACK;
   newGame();
 });
 
@@ -483,8 +498,10 @@ document.addEventListener('keydown', e => {
 });
 
 themeBtn.addEventListener('click', () => {
-  dark = !dark;
-  document.body.classList.toggle('dark', dark);
+  const value = persistChoice('theme', dark ? 'light' : 'dark');
+  if (!value) return;
+  dark = value === 'dark';
+  document.documentElement.classList.toggle('dark', dark);
   draw();
   themeBtn.textContent = dark ? t(lang, 'themeLight') : t(lang, 'themeDark');
 });
@@ -492,5 +509,8 @@ themeBtn.addEventListener('click', () => {
 window.addEventListener('resize', resize);
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+diffSel.value = difficulty;
+colorSel.value = prefs.color;
+document.documentElement.classList.toggle('dark', dark);
 resize();
 newGame();

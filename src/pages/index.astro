@@ -9,6 +9,36 @@ export const prerender = true;
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Gomoku Jev</title>
+  <script is:inline>
+    try {
+      var params = new URLSearchParams(location.search);
+      var choice = {
+        lang: { param: 'lang', storageKey: 'gomoku_lang', allowed: ['en', 'ja', 'zh'] },
+        theme: { param: 'theme', storageKey: 'gomoku_theme', allowed: ['light', 'dark'] },
+      };
+      function pick(name) {
+        var spec = choice[name];
+        function norm(value) {
+          if (typeof value !== 'string') return null;
+          var v = value.trim().toLowerCase();
+          return spec.allowed.indexOf(v) === -1 ? null : v;
+        }
+        var fromUrl = null;
+        params.forEach(function (value, key) {
+          if (fromUrl == null && key.toLowerCase() === spec.param) {
+            var canonical = norm(value);
+            if (canonical) fromUrl = canonical;
+          }
+        });
+        var stored = null;
+        try { stored = norm(localStorage.getItem(spec.storageKey)); } catch (e) {}
+        return fromUrl || stored;
+      }
+      var lang = pick('lang');
+      if (lang) document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
+      document.documentElement.classList.toggle('dark', pick('theme') === 'dark');
+    } catch (e) {}
+  </script>
 </head>
 <body>
   <header class="app-header">
