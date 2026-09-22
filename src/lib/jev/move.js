@@ -447,38 +447,42 @@ export async function chooseMove({
       return { row: picked[0], col: picked[1], source: 'jev', confidence, depth, nodes, rounds: 1 };
     }
 
-    let combined = blend(offered, answer);
+    const combined = blend(offered, answer);
 
     // 4. Hard only: when Jev is unsure or the top two are close, re-search just
     //    those two deeper and let it choose again on better information.
     const runoff = cfg.runoff;
-    const close = combined.length >= 2
+    const torn = runoff !== null
+      && combined.length >= 2
       && (confidence < runoff.confidence
         || combined[0].combined - combined[1].combined < runoff.margin);
 
-    if (runoff && combined.length >= 2 && close) {
-      const finalists = combined.slice(0, 2);
-      const deeper = searchMove(board, player, {
-        ...runoff.search,
-        rootMoves: finalists.map(entry => [entry.row, entry.col]),
-      });
-      if (deeper.row !== null && deeper.ranked.length === 2) {
-        const second = await ask(buildJevRequest(board, player, {
-          difficulty: level, history, ranked: deeper.ranked, depth: deeper.depth, runoff: true,
-        }));
-        const refined = blend(deeper.ranked, second);
-        const top = refined[0];
-        if (isValidMove(board, top.row, top.col)) {
-          return {
-            row: top.row,
-            col: top.col,
-            source: 'jev',
-            confidence: Number(second?.confidence) || confidence,
-            depth: deeper.depth,
-            nodes: nodes + deeper.nodes,
-            rounds: 2,
-          };
+    if (torn) {
+      try {
+        const deeper = searchMove(board, player, {
+          ...runoff.search,
+          rootMoves: combined.slice(0, 2).map(entry => [entry.row, entry.col]),
+        });
+        if (deeper.row !== null && deeper.ranked.length === 2) {
+          const second = await ask(buildJevRequest(board, player, {
+            difficulty: level, history, ranked: deeper.ranked, depth: deeper.depth, runoff: true,
+          }));
+          const top = blend(deeper.ranked, second)[0];
+          if (isValidMove(board, top.row, top.col)) {
+            return {
+              row: top.row,
+              col: top.col,
+              source: 'jev',
+              confidence: Number(second?.confidence) || confidence,
+              depth: deeper.depth,
+              nodes: nodes + deeper.nodes,
+              rounds: 2,
+            };
+          }
         }
+      } catch {
+        // A failed runoff keeps the first round's answer, which was already good
+        // enough to be inside the band.
       }
     }
 
