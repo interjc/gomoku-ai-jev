@@ -1,64 +1,233 @@
 /* ─── Reset & Tokens ───────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+[hidden] { display: none !important; }
+
 :root {
-  --bg:        #f5f0e8;
-  --surface:   #fff9f0;
-  --border:    #d4b896;
-  --text:      #2c1a08;
-  --text-muted:#7a5a3a;
-  --accent:    #c0763a;
-  --accent-dk: #954f1c;
-  --shadow:    rgba(90, 50, 10, 0.15);
-  --radius:    8px;
+  color-scheme: light;
+
+  --bg:            #f6f3ee;
+  --surface:       #ffffff;
+  --surface-2:     #f3eee6;
+  --border:        #e7dfd3;
+  --border-strong: #d6c8b3;
+  --text:          #2a2118;
+  --text-muted:    #85735f;
+  --accent:        #a85d27;
+  --accent-hover:  #8f4d1d;
+  --accent-soft:   rgba(168, 93, 39, 0.12);
+  --on-accent:     #ffffff;
+  --ring:          rgba(168, 93, 39, 0.35);
+  --shadow-sm:     0 1px 2px rgba(60, 40, 20, 0.06);
+  --shadow:        0 1px 2px rgba(60, 40, 20, 0.06), 0 8px 24px rgba(60, 40, 20, 0.08);
+  --shadow-board:  0 1px 2px rgba(60, 40, 20, 0.10), 0 12px 32px rgba(60, 40, 20, 0.16);
+
+  --radius:    12px;
+  --radius-sm: 8px;
+  --control-h: 38px;
+
+  /* Mirrors the canvas sizing in main.js: min(container, 70% of the viewport
+     height, 560px). Sizing the column the same way keeps the board flush with
+     the panel instead of floating in a wider track. */
+  --board-max: min(560px, 70vh);
+  --panel-w:   272px;
+  --gap:       16px;
+  --gutter:    max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
+}
+
+/* A custom property is never invalid at parse time, so a plain second
+   declaration would not fall back; gate the dvh version instead. */
+@supports (height: 1dvh) {
+  :root { --board-max: min(560px, 70dvh); }
 }
 
 html.dark {
-  --bg:        #1a1210;
-  --surface:   #241a14;
-  --border:    #5a3e28;
-  --text:      #f0e0c8;
-  --text-muted:#a08060;
-  --accent:    #d4884a;
-  --accent-dk: #b06030;
-  --shadow:    rgba(0,0,0,0.4);
+  color-scheme: dark;
+
+  --bg:            #14110e;
+  --surface:       #1e1914;
+  --surface-2:     #28211b;
+  --border:        #342a22;
+  --border-strong: #4a3c30;
+  --text:          #f1e6d6;
+  --text-muted:    #a6927c;
+  --accent:        #d98a4e;
+  --accent-hover:  #e79c61;
+  --accent-soft:   rgba(217, 138, 78, 0.16);
+  --on-accent:     #1a120c;
+  --ring:          rgba(217, 138, 78, 0.45);
+  --shadow-sm:     0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow:        0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-board:  0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
-  font-family: 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Hiragino Sans', 'Noto Sans JP', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.4;
   background: var(--bg);
   color: var(--text);
+  min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ─── Header ───────────────────────────────────────────────────────────────── */
 .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding-top: env(safe-area-inset-top);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  border-bottom: 1px solid var(--border);
+  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  backdrop-filter: saturate(1.4) blur(12px);
+}
+
+.header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 2px 6px var(--shadow);
+  gap: 12px;
+  height: 52px;
+  width: 100%;
+  max-width: calc(var(--board-max) + var(--panel-w) + var(--gap) + var(--gutter) * 2);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* A black and a white stone, overlapping. */
+.brand-mark {
+  position: relative;
+  flex-shrink: 0;
+  width: 26px;
+  height: 20px;
+}
+.brand-mark::before,
+.brand-mark::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+.brand-mark::before {
+  left: 0;
+  background: radial-gradient(circle at 35% 30%, #666, #000 70%);
+}
+html.dark .brand-mark::before {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+.brand-mark::after {
+  left: 9px;
+  background: radial-gradient(circle at 35% 30%, #fff, #cfcfcf 75%);
+  box-shadow: 0 0 0 1.5px var(--bg), 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .app-header h1 {
-  font-size: 1.25rem;
+  font-size: 1.0625rem;
   font-weight: 700;
-  color: var(--accent-dk);
+  letter-spacing: -0.01em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
+  flex-shrink: 0;
 }
 
-.header-actions .btn {
-  height: 32px;
-  box-sizing: border-box;
+/* ─── Buttons ──────────────────────────────────────────────────────────────── */
+.btn {
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--control-h);
+  padding: 0 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.btn-primary:hover { background: var(--accent-hover); }
+
+/* Header buttons are quieter: no fill until hovered. */
+.btn-sm {
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+  background: transparent;
+  border-color: var(--border);
+  box-shadow: none;
+}
+.btn-sm:hover { background: var(--surface); border-color: var(--border-strong); }
+
+.btn-icon {
+  width: 34px;
+  padding: 0;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.btn-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  display: block;
+}
+
+#btn-theme {
+  font-size: 0.95rem;
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 /* ─── Dropdown ─────────────────────────────────────────────────────────────── */
@@ -68,15 +237,7 @@ body {
 }
 
 .dropdown-toggle {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 10px;
-  user-select: none;
-  box-sizing: border-box;
-  font-size: 0.82rem;
-  line-height: 1;
 }
 
 .lang-icon {
@@ -91,6 +252,7 @@ body {
   width: 9px;
   height: 6px;
   stroke: currentColor;
+  opacity: 0.6;
   transition: transform 0.15s ease;
   pointer-events: none;
   flex-shrink: 0;
@@ -102,13 +264,13 @@ body {
 
 .dropdown-menu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   right: 0;
-  min-width: 120px;
+  min-width: 140px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 4px 14px var(--shadow);
+  box-shadow: var(--shadow);
   padding: 4px;
   list-style: none;
   z-index: 100;
@@ -119,6 +281,12 @@ body {
 
 .dropdown.open .dropdown-menu {
   display: flex;
+  animation: menu-in 0.12s ease-out;
+}
+
+@keyframes menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
 }
 
 .dropdown-item {
@@ -126,12 +294,12 @@ body {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 6px 10px;
+  padding: 8px 10px;
   border: none;
-  border-radius: calc(var(--radius) - 2px);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-family: inherit;
   cursor: pointer;
   text-align: left;
@@ -141,29 +309,20 @@ body {
 
 .dropdown-item:hover,
 .dropdown-item:focus-visible {
-  background: var(--border);
+  background: var(--surface-2);
   outline: none;
 }
 
 .dropdown-item.active {
-  color: var(--accent-dk);
-  font-weight: 600;
-  background: rgba(192, 118, 58, 0.12);
-}
-
-html.dark .dropdown-item.active {
   color: var(--accent);
-  background: rgba(212, 136, 74, 0.18);
+  font-weight: 600;
+  background: var(--accent-soft);
 }
 
 .dropdown-item .check-mark {
   opacity: 0;
   font-size: 0.75rem;
-  margin-left: 8px;
-  color: var(--accent-dk);
-}
-
-html.dark .dropdown-item .check-mark {
+  margin-left: 12px;
   color: var(--accent);
 }
 
@@ -171,192 +330,37 @@ html.dark .dropdown-item .check-mark {
   opacity: 1;
 }
 
-/* ─── Buttons ──────────────────────────────────────────────────────────────── */
-.btn {
-  font-family: inherit;
-  padding: 7px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-.btn:hover { background: var(--border); }
-
-.btn-primary {
-  background: var(--accent);
-  border-color: var(--accent-dk);
-  color: #fff;
-  font-weight: 600;
-}
-.btn-primary:hover { background: var(--accent-dk); }
-
-.btn-sm {
-  height: 32px;
-  padding: 0 10px;
-  font-size: 0.82rem;
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  line-height: 1;
-  text-decoration: none;
-  flex-shrink: 0;
-  box-sizing: border-box;
-}
-.btn-icon svg {
-  width: 16px;
-  height: 16px;
-  fill: currentColor;
-  display: block;
-}
-
-#btn-theme {
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.button-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 /* ─── Main layout ──────────────────────────────────────────────────────────── */
+/* Wide screens: board on the left, a panel of the same height on the right,
+   the pair centred. */
 .app-main {
-  display: flex;
   flex: 1;
-  gap: 16px;
-  padding: 16px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-/* ─── Controls sidebar ─────────────────────────────────────────────────────── */
-.controls {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-width: 180px;
-  max-width: 220px;
-  flex: 0 0 auto;
-}
-
-.controls-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.control-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.control-group label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.select {
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-/* ─── Status & Thinking ────────────────────────────────────────────────────── */
-.status-text {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--accent-dk);
-  min-height: 1.4em;
-}
-
-.thinking {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  font-style: italic;
-  animation: pulse 1s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
-}
-
-/* ─── History ──────────────────────────────────────────────────────────────── */
-.history-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
-}
-
-.history-title {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.history-list {
-  list-style: none;
-  padding: 0;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  max-height: 280px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  counter-reset: none;
-}
-
-.history-list li {
-  padding: 2px 4px;
-  border-radius: 4px;
-}
-.history-list li:last-child {
-  background: var(--border);
-  color: var(--text);
-  font-weight: 600;
+  display: grid;
+  grid-template-columns: minmax(0, var(--board-max)) var(--panel-w);
+  grid-template-areas: "board panel";
+  justify-content: center;
+  align-items: stretch;
+  align-content: start;
+  gap: var(--gap);
+  width: 100%;
+  padding: 20px var(--gutter) max(20px, env(safe-area-inset-bottom));
 }
 
 /* ─── Board canvas ─────────────────────────────────────────────────────────── */
 .board-section {
-  flex: 1 1 300px;
+  grid-area: board;
+  min-width: 0;
   display: flex;
   justify-content: center;
   /* Without this the default `stretch` overrides the canvas's `height: auto`
-     and squashes the board out of square once the layout turns into a column. */
+     and squashes the board out of square. */
   align-items: flex-start;
 }
 
 .board-canvas {
   display: block;
   border-radius: var(--radius);
-  box-shadow: 0 4px 20px var(--shadow);
+  box-shadow: var(--shadow-board);
   cursor: crosshair;
   touch-action: none;
   max-width: 100%;
@@ -364,55 +368,277 @@ html.dark .dropdown-item .check-mark {
   aspect-ratio: 1;   /* the board is square whatever the layout does */
 }
 
-/* ─── Mobile ───────────────────────────────────────────────────────────────── */
-@media (max-width: 600px) {
+/* ─── Side panel ───────────────────────────────────────────────────────────── */
+.panel {
+  grid-area: panel;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* ─── Status ───────────────────────────────────────────────────────────────── */
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
+
+.status-text {
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The status line already says the AI is thinking, so this element is shown
+   as a spinner only. */
+.thinking {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  border-right-color: transparent;
+  font-size: 0;
+  color: transparent;
+  overflow: hidden;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Settings ─────────────────────────────────────────────────────────────── */
+/* Label and select share a row; the labels form one column so the selects
+   line up. */
+.settings {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.control-group {
+  display: contents;
+}
+
+.control-group label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.select-wrap {
+  position: relative;
+  min-width: 0;
+}
+.select-wrap::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 6px;
+  height: 6px;
+  margin-top: -5px;
+  border-right: 1.5px solid var(--text-muted);
+  border-bottom: 1.5px solid var(--text-muted);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: var(--control-h);
+  padding: 0 32px 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.select:hover { border-color: var(--text-muted); }
+.select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* ─── History ──────────────────────────────────────────────────────────────── */
+.history-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.history-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.history-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  /* A zero height with flex-grow fills whatever the panel has left, so a long
+     game scrolls inside the list instead of making the panel taller than the
+     board. */
+  flex: 1 1 auto;
+  height: 0;
+  min-height: 96px;
+}
+
+.history-list:empty::before {
+  content: '—';
+  color: var(--border-strong);
+}
+
+.history-list li {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.history-list li:last-child {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ─── Short landscape screens (phones on their side) ───────────────────────── */
+@media (max-height: 520px) and (orientation: landscape) {
+  .header-inner { height: 44px; }
+  .app-main { padding-top: 12px; padding-bottom: max(12px, env(safe-area-inset-bottom)); gap: 12px; }
+  .panel { padding: 10px; gap: 10px; }
+  .status-bar { min-height: 38px; }
+  .history-panel { padding-top: 10px; }
+  .history-list { min-height: 48px; }
+}
+
+/* ─── Single column: phones and portrait tablets ───────────────────────────── */
+/* Status above the board, the controls beneath it within thumb reach, and the
+   move list last. Everything above the board keeps a fixed height, so the
+   board never moves during a game. */
+@media (max-width: 719px), (orientation: portrait) and (max-width: 1024px) {
+  :root {
+    --gutter: max(12px, env(safe-area-inset-left), env(safe-area-inset-right));
+    --control-h: 44px;
+  }
+
+  .header-inner {
+    height: 48px;
+    max-width: calc(560px + var(--gutter) * 2);
+  }
+
   .app-main {
-    display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      "controls"
+      "status"
       "board"
+      "actions"
+      "settings"
       "history";
-    /* Pack the rows to the top. Stretching them to fill the screen lets a
-       longer move list change the board's position. */
-    align-content: start;
-    padding: 10px;
+    max-width: calc(560px + var(--gutter) * 2);
+    margin: 0 auto;
+    padding-top: 12px;
+    gap: 12px;
+  }
+
+  /* Drop the panel box so its parts can sit around the board. */
+  .panel { display: contents; }
+
+  .status-bar { grid-area: status; }
+
+  /* The canvas sizes itself from this element's width, so give it a definite
+     one to measure. */
+  .board-section { width: 100%; }
+
+  .button-row { grid-area: actions; }
+
+  .settings {
+    grid-area: settings;
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
-
-  /* Drop the sidebar box so the move list can sit under the board. Leaving it
-     inside the sidebar puts the list above the board, and each new move shifts
-     the board down. */
-  .controls {
-    display: contents;
-  }
-
-  .controls-bar {
-    grid-area: controls;
-    max-width: 100%;
-    width: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: flex-end;
-  }
-
-  .control-group { min-width: 130px; }
-
-  /* The column layout does not stretch its items, and the canvas sizes itself
-     from this element's width, so give it a definite one to measure. */
-  .board-section {
-    grid-area: board;
-    width: 100%;
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     min-width: 0;
   }
+  .control-group label { font-size: 0.75rem; padding-left: 2px; }
+
+  /* 16px keeps iOS Safari from zooming in when a select is focused. */
+  .select { font-size: 1rem; }
+  .btn:not(.btn-sm) { font-size: 0.95rem; }
 
   .history-panel {
     grid-area: history;
-    width: 100%;
-    min-width: 0;
-    border-top: none;
-    padding-top: 0;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
   }
 
-  .history-list { max-height: 100px; }
+  .history-list {
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    height: auto;
+    min-height: 0;
+    max-height: 7.5rem;
+  }
+}
+
+@media (max-width: 359px) {
+  #btn-lang-text { display: none; }
+  .app-header h1 { font-size: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  /* The spinner is the only thinking cue, so keep it slow rather than frozen. */
+  .thinking { animation-duration: 1.6s !important; }
 }
