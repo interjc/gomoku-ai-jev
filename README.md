@@ -46,7 +46,11 @@ pnpm run deploy
 pnpm exec wrangler secret put TYPESAFE_API_KEY
 ```
 
-Model URL, model name, and `JEV_MIN_CONFIDENCE` are public `vars` in `wrangler.jsonc`. The API key is not. For local development, put it in `.dev.vars` (gitignored):
+Model URL, model name, and `JEV_MIN_CONFIDENCE` are public `vars` in `wrangler.jsonc`. The API key is not. For local development, copy `.dev.vars.example` to `.dev.vars` (gitignored) and add your API key:
+
+```sh
+cp .dev.vars.example .dev.vars
+```
 
 ```
 TYPESAFE_API_KEY=your-local-key
