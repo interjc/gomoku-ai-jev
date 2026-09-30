@@ -2,7 +2,7 @@
 
 A browser-based Gomoku (five-in-a-row) game. The Worker searches the position and Jev chooses among the moves the search cannot separate. The site is an Astro app deployed to Cloudflare Workers.
 
-**Live demo:** https://sen.ltd/portfolio/gomoku-ai/
+**Live demo:** https://gomoku.games.interjc.net/
 
 ## Features
 
@@ -20,45 +20,117 @@ A browser-based Gomoku (five-in-a-row) game. The Worker searches the position an
 - **Dark / light theme**
 - **Mobile-friendly** — touch support on canvas
 
+## Configuration & API Keys
+
+To enable Jev AI decision-making:
+
+1. **Obtain an API Key**: Sign up at [https://api.typesafe.ai](https://api.typesafe.ai) to get your API key.
+2. **Local Development**: Copy `.dev.vars.example` to `.dev.vars` (gitignored) and add your key:
+   ```sh
+   cp .dev.vars.example .dev.vars
+   ```
+   ```ini
+   TYPESAFE_API_KEY=your_typesafe_api_key_here
+   ```
+3. **Production Deployment**: Store the key as a Cloudflare Worker secret:
+   ```sh
+   pnpm exec wrangler secret put TYPESAFE_API_KEY
+   ```
+
+> [!NOTE]
+> If no API key is provided, or if the API call fails or times out, the game automatically falls back to the built-in depth-bounded search engine.
+
+### Using Compatible Models & Custom Endpoints
+
+If you want to use an alternative model or a custom proxy/gateway compatible with Jev, adjust the `vars` in `wrangler.jsonc`:
+
+```jsonc
+{
+  "vars": {
+    "TYPESAFE_BASE_URL": "https://api.typesafe.ai", // Base URL for the API endpoint
+    "TYPESAFE_DEFAULT_MODEL": "jev-latest",        // Model identifier
+    "JEV_MIN_CONFIDENCE": "0"                       // Confidence threshold (0 to 1)
+  }
+}
+```
+
+For local development, you can override these variables directly in your `.dev.vars` file:
+
+```ini
+# Optional overrides in .dev.vars
+TYPESAFE_BASE_URL=https://your-custom-endpoint.com
+TYPESAFE_DEFAULT_MODEL=your-compatible-model
+JEV_MIN_CONFIDENCE=0
+```
+
 ## Development
 
-```sh
-bash scripts/dev.sh
-```
+### Prerequisites
 
-That installs dependencies with pnpm and starts Astro at http://localhost:4321. `pnpm run dev` starts the server on its own.
+- **Node.js**: `>= 24.0.0` (required for native `node:test`)
+- **pnpm**: Package manager
 
-```sh
-pnpm test
-pnpm run build
-pnpm run preview
-```
+### Getting Started
 
-Tests use Node.js built-in `node:test` (Node 24+).
+1. **Install dependencies**:
+   ```sh
+   pnpm install
+   ```
+
+2. **Configure environment variables**:
+   Copy `.dev.vars.example` to `.dev.vars` and add your `TYPESAFE_API_KEY` (see [Configuration & API Keys](#configuration--api-keys)).
+
+3. **Start the local server**:
+   ```sh
+   pnpm run dev
+   ```
+   *(Alternatively, run `bash scripts/dev.sh`)*
+
+   The dev server will start at `http://localhost:4321`.
+
+4. **Run tests**:
+   ```sh
+   pnpm test
+   ```
+   *(Tests use Node.js built-in `node:test` runner).*
+
+5. **Build and preview**:
+   ```sh
+   pnpm run build
+   pnpm run preview
+   ```
 
 ## Deploy
 
-The production target is a Cloudflare Worker, using the same adapter entry as a typical Astro Workers app. There are no KV, D1, or R2 bindings. `pnpm run deploy` builds the site and uploads it with Wrangler.
+The production target is a Cloudflare Worker using `@astrojs/cloudflare` as the adapter entry. There are no KV, D1, or R2 bindings.
 
-```sh
-pnpm exec wrangler login
-pnpm run deploy
-pnpm exec wrangler secret put TYPESAFE_API_KEY
-```
+### Deploying with Wrangler CLI
 
-Model URL, model name, and `JEV_MIN_CONFIDENCE` are public `vars` in `wrangler.jsonc`. The API key is not. For local development, copy `.dev.vars.example` to `.dev.vars` (gitignored) and add your API key:
+1. **Log in to Cloudflare**:
+   ```sh
+   pnpm exec wrangler login
+   ```
 
-```sh
-cp .dev.vars.example .dev.vars
-```
+2. **Set the API secret** (first-time setup or when updating the key):
+   ```sh
+   pnpm exec wrangler secret put TYPESAFE_API_KEY
+   ```
 
-```
-TYPESAFE_API_KEY=your-local-key
-```
+3. **Build and deploy**:
+   ```sh
+   pnpm run deploy
+   ```
+   *(Runs `astro build && wrangler deploy`).*
 
-The Worker name is `gomoku-ai-jev`. The first deploy is available on your `workers.dev` subdomain. Attach a custom domain in the Cloudflare dashboard when you want one.
+The Worker name is `gomoku-ai-jev`. On the first deployment, it will be available on your `*.workers.dev` subdomain. You can attach a custom domain in the Cloudflare dashboard under **Workers & Pages > Settings > Domains & Routes**.
 
-For Workers Builds, use build command `pnpm run build` and deploy command `pnpm exec wrangler deploy`.
+### Cloudflare Workers Builds (CI/CD)
+
+When using Git integration via Cloudflare Workers Builds:
+- **Build command**: `pnpm run build`
+- **Deploy command**: `pnpm exec wrangler deploy`
+- **Secrets**: Add `TYPESAFE_API_KEY` as an encrypted secret under Worker **Settings > Variables and Secrets**.
+- **Public variables**: Defined in `wrangler.jsonc` and deployed automatically.
 
 ## Jev
 
@@ -158,5 +230,7 @@ MIT
 
 ## Links
 
-- 🌐 Demo: https://gomoku.games.interjc.net
+- 🌐 Demo: https://gomoku.games.interjc.net/
+- 🔑 TypeSafe AI Platform: https://api.typesafe.ai
+- 📖 TypeSafe Documentation: https://docs.typesafe.ai
 
