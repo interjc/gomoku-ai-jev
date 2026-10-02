@@ -4,19 +4,22 @@
 
 import { TypeSafeClient, choice } from '@typesafe-ai/sdk';
 
+export const JEV_MODEL = 'jev-latest';
+
 export function readJevConfig(env = {}) {
   const apiKey = String(env.TYPESAFE_API_KEY ?? '').trim();
   const minConfidence = Number(env.JEV_MIN_CONFIDENCE ?? 0.5);
   return {
     apiKey,
     baseURL: env.TYPESAFE_BASE_URL || 'https://api.typesafe.ai',
-    model: env.TYPESAFE_DEFAULT_MODEL || 'jev-latest',
+    model: env.TYPESAFE_DEFAULT_MODEL || JEV_MODEL,
     minConfidence: Number.isFinite(minConfidence) ? minConfidence : 0.5,
   };
 }
 
 export async function askJev(env, request) {
   const { apiKey, baseURL, model } = readJevConfig(env);
+  if (model !== JEV_MODEL) throw new Error('Unsupported Jev model');
   const client = new TypeSafeClient({
     apiKey,
     baseURL,

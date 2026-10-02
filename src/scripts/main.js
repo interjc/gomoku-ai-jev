@@ -280,9 +280,7 @@ function updateModelStatus() {
   const strength = difficulty === 'easy' ? t(lang, 'positionOnly')
     : `${t(lang, 'searchDepth', depth)}${difficulty === 'master' ? ` · ${t(lang, 'classicStrength')}` : ''}`;
   document.getElementById('model-status-strength').textContent = t(lang, difficulty);
-  const modelId = provider === 'clef' ? `@cf/cloudflare/${difficulty === 'hard' || difficulty === 'master' ? 'clef' : 'clef-flash'}`
-    : provider === 'jev' ? providerConfig.providers.find(item => item.id === 'jev').model : t(lang, 'localModel');
-  document.getElementById('model-details-model').textContent = modelId;
+  document.getElementById('model-details-model').textContent = modelName;
   document.getElementById('model-details-strength').textContent = `${t(lang, difficulty)} · ${strength}`;
   document.getElementById('model-details-title').textContent = t(lang, 'opponentDetails');
   document.getElementById('model-details-model-label').textContent = t(lang, 'modelLabel');

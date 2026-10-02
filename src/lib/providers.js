@@ -1,5 +1,5 @@
 /** Server-only provider configuration and transport selection. */
-import { askJev, readJevConfig } from './jev/ask.js';
+import { askJev, readJevConfig, JEV_MODEL } from './jev/ask.js';
 import { askClef, clefModel, readClefConfig } from './workers-ai/ask.js';
 import { PROVIDERS, resolveProvider } from './provider-choice.js';
 
@@ -12,13 +12,12 @@ export function getProviderConfig(env = {}) {
     const isEnabled = enabled(env[id === 'clef' ? 'AI_CLEF_ENABLED' : 'AI_JEV_ENABLED']);
     const configured = id === 'clef'
       ? typeof env.AI?.run === 'function'
-      : Boolean(readJevConfig(env).apiKey);
+      : Boolean(readJevConfig(env).apiKey) && readJevConfig(env).model === JEV_MODEL;
     return {
       id,
       enabled: isEnabled,
       available: isEnabled && configured,
       reason: !isEnabled ? 'disabled' : !configured ? 'not-configured' : null,
-      model: id === 'jev' ? readJevConfig(env).model : null,
     };
   });
   const config = { providers, defaultProvider: env.AI_DEFAULT_PROVIDER ?? 'jev' };
