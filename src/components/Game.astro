@@ -114,7 +114,7 @@ const publicConfig = JSON.stringify({ provider, ...config }).replace(/</g, '\\u0
         </a>
       </div>
       <div class="model-status">
-        <button id="btn-model-details" class="model-status-trigger" type="button" aria-haspopup="dialog" aria-controls="model-details" aria-expanded="false">
+        <button id="btn-model-details" class="model-status-trigger" type="button" aria-haspopup="dialog" aria-controls="model-details" aria-expanded="false" title={`${provider === 'clef' ? 'Clef Flash' : provider === 'jev' ? 'Jev' : 'Local search'} · Hard — Opponent details`} aria-label={`${provider === 'clef' ? 'Clef Flash' : provider === 'jev' ? 'Jev' : 'Local search'} · Hard — Opponent details`}>
           <span class="model-status-dot" aria-hidden="true"></span>
           <span id="model-status-name">{provider === 'clef' ? 'Clef Flash' : provider === 'jev' ? 'Jev' : 'Local search'}</span>
           <span class="model-status-divider" aria-hidden="true">·</span>

@@ -287,7 +287,9 @@ function updateModelStatus() {
   document.getElementById('model-details-strength-label').textContent = t(lang, 'strengthLabel');
   document.getElementById('model-details-description').textContent = t(lang, provider ? `details${difficulty}` : 'detailsLocal');
   document.getElementById('btn-close-model-details').setAttribute('aria-label', t(lang, 'closeDetails'));
-  modelBtn.setAttribute('aria-label', `${modelName} · ${t(lang, difficulty)} — ${t(lang, 'opponentDetails')}`);
+  const detailsLabel = `${modelName} · ${t(lang, difficulty)} — ${t(lang, 'opponentDetails')}`;
+  modelBtn.setAttribute('aria-label', detailsLabel);
+  modelBtn.title = detailsLabel;
   const note = document.getElementById('provider-note');
   note.textContent = notes.join(' · ');
   note.hidden = notes.length === 0;
