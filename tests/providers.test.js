@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { getProviderConfig, createProvider } from '../src/lib/providers.js';
 import { chooseMove, buildJevRequest } from '../src/lib/jev/move.js';
 import { BLACK, WHITE, createBoard, placeStone } from '../src/lib/gomoku.js';
+import { askJev } from '../src/lib/jev/ask.js';
 
 const configured = { AI: { run() {} }, TYPESAFE_API_KEY: 'test-key' };
 
@@ -52,15 +53,27 @@ describe('provider capabilities', () => {
     });
     const provider = createProvider({
       ...configured, TYPESAFE_BASE_URL: 'https://example.com/proxy',
-      TYPESAFE_DEFAULT_MODEL: 'custom-jev', JEV_MIN_CONFIDENCE: '0.7',
+      TYPESAFE_DEFAULT_MODEL: 'jev-latest', JEV_MIN_CONFIDENCE: '0.7',
     }, 'jev', 'master');
     assert.deepEqual(await provider.ask(request), response);
-    assert.equal(provider.model, 'custom-jev');
+    assert.equal(provider.model, 'jev-latest');
     assert.equal(provider.minConfidence, 0.7);
     assert.equal(sent.url, 'https://example.com/proxy/v1/systemone');
     assert.equal(new Headers(sent.options.headers).get('authorization'), 'Bearer test-key');
-    assert.equal(sent.body.model, 'custom-jev');
+    assert.equal(sent.body.model, 'jev-latest');
     assert.deepEqual(sent.body.questions.move, { type: 'choice', instructions: request.instructions, criteria: request.criteria });
+  });
+
+  it('refuses other Jev model configurations before any upstream request', async t => {
+    let calls = 0;
+    t.mock.method(globalThis, 'fetch', async () => { calls++; throw new Error('Unexpected inference'); });
+    for (const model of ['custom-jev', '@cf/cloudflare/clef', 'gpt-4o']) {
+      const env = { ...configured, TYPESAFE_DEFAULT_MODEL: model };
+      assert.equal(getProviderConfig(env).providers.find(item => item.id === 'jev').available, false);
+      assert.throws(() => createProvider(env, 'jev', 'hard'), /unavailable/);
+      await assert.rejects(askJev(env, {}), /Unsupported Jev model/);
+    }
+    assert.equal(calls, 0);
   });
 });
 

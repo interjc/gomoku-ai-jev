@@ -9,7 +9,7 @@ A browser-based Gomoku (five-in-a-row) game. The Worker searches the position an
 - **15×15 board** with canvas rendering (wooden board, gradient stones)
 - **Player vs AI** — play as black or white
 - **Clef / Jev toggle in the title** — `/clef` and `/jev` identify the opponent; switching paths reloads the page and starts a new game
-- **Compact opponent status** — the navbar shows the current model and difficulty; hover for details, or click/tap to open a modal with the model ID and search strength
+- **Compact opponent status** — the navbar shows the current model and difficulty; hover for details, or click/tap to open a modal with the model name and search strength. Model names are Clef, Clef Flash, and Jev, without transport IDs or provider details.
 - **4 difficulty levels** — difficulty is how far ahead the AI looks and tactical depth:
   - Easy: no lookahead at all. The model picks from nearby points described by the current position alone — no scores, no replies
   - Medium: a depth-2 search shortlists a dozen points, and the model picks among them with the pattern score and the opponent's best answer
@@ -70,7 +70,7 @@ Both rounds of a hard/master decision use the same model. No TypeSafe key or sep
 
 ### Jev API key and compatible endpoints
 
-The existing Jev connector and all `TYPESAFE_*` / `JEV_MIN_CONFIDENCE` settings are unchanged.
+The existing Jev connector, API key, endpoint, and confidence settings are retained. `TYPESAFE_DEFAULT_MODEL` must be `jev-latest`; any other value makes Jev unavailable and its transport rejects inference before sending a request.
 
 1. Obtain a key from [TypeSafe](https://api.typesafe.ai).
 2. For local development, copy `.dev.vars.example` to `.dev.vars` (gitignored), then uncomment and set:
@@ -82,13 +82,13 @@ The existing Jev connector and all `TYPESAFE_*` / `JEV_MIN_CONFIDENCE` settings 
    pnpm exec wrangler secret put TYPESAFE_API_KEY
    ```
 
-`TYPESAFE_BASE_URL` and `TYPESAFE_DEFAULT_MODEL` still support Jev-compatible custom endpoints and models. Local settings may override the public Wrangler variables in `.dev.vars`, for example:
+`TYPESAFE_BASE_URL` still supports a Jev-compatible custom endpoint. The model is restricted to Jev. Local settings may override the public Wrangler variables in `.dev.vars`, for example:
 
 ```ini
 AI_DEFAULT_PROVIDER=clef
-# Optional custom Jev endpoint/model:
+# Optional custom Jev endpoint:
 # TYPESAFE_BASE_URL=https://your-custom-endpoint.com
-# TYPESAFE_DEFAULT_MODEL=your-compatible-model
+# TYPESAFE_DEFAULT_MODEL=jev-latest
 # JEV_MIN_CONFIDENCE=0
 ```
 
@@ -192,7 +192,17 @@ The Worker calls `jev-latest` through the [TypeSafe JavaScript SDK](https://docs
 
 ## How the AI Works
 
-Each model-backed AI turn asks `POST /api/move` on the Worker with an explicit `provider` (`clef` or `jev`), the board, player, difficulty, and history. Responses retain row/column, confidence, depth, and rounds, and include the selected `provider` and actual `model` ID when a model supplied the decision. `source` distinguishes `clef`, `jev`, `search`, `rule`, `classic`, and `local`.
+Each model-backed AI turn asks `POST /api/move` on the Worker with an explicit `provider` (`clef` or `jev`), the board, player, difficulty, and history. Responses retain row/column, confidence, depth, and rounds. `model` is `Clef`, `Clef Flash`, or `Jev` when a model supplied the decision, and `null` for an engine move. Responses do not include a provider field or transport model ID. `source` distinguishes `clef`, `jev`, `search`, `rule`, `classic`, and `local`.
+
+The API accepts only Gomoku positions, without an AI classification step:
+
+- Requests must use `application/json` and fit within **16 KiB**. The limit is enforced while reading the body, even without a trustworthy `Content-Length`. Unsupported content types return 415; oversized bodies return 413.
+- Only `board`, `player`, `history`, `difficulty`, and `provider` are accepted. `board`, `player`, and the complete `history` are required. Difficulty defaults to hard and provider defaults to the available deployment default; supplied values must be valid enum values. Prompt, messages, model, state, instructions, and all other extra fields return 400.
+- The board must be a 15 × 15 numeric matrix of 0 (empty), 1 (black), or 2 (white). Each history entry contains only numeric `row`, `col`, and `player`. The server replays from an empty board, checks black-first alternating turns, integer coordinates, unique points, and exact agreement with the supplied board. The requested player must be next to move.
+- Won games, moves after a win, full boards, missing or inconsistent records, and malformed JSON return 400 before search or inference.
+- Workers AI IDs are fixed to `@cf/cloudflare/clef` and `@cf/cloudflare/clef-flash`; Jev is fixed to `jev-latest`. Clients cannot supply a model ID, endpoint, instructions, or candidate descriptions. The server generates the model request from the validated game.
+
+This verifies that input is a legal Gomoku record. It cannot prove that the record came from a human playing on this site, and does not rate-limit repeated legal game requests.
 
 1. **Rule & Tactical shortcuts**: Above easy, code plays an immediate five or blocks the opponent's immediate five. On Master, code also checks classical tactical shapes (continuous fours / VCF, four-threes, jump-four blocks) and plays them directly.
 2. **Search**: The engine searches to the depth the level allows and ranks every candidate point. On Master in a recognized opening, the search restricts root moves to the recorded canonical branches.
@@ -264,6 +274,7 @@ gomoku-ai-jev/
 │       ├── classic.js  Classical shapes, four-three tactics, and VCF solver
 │       ├── openings.js 26 canonical Gomoku opening records & symmetry mapping
 │       ├── providers.js Provider configuration & transport selection
+│       ├── move-api.js Gomoku-only request limits, replay validation & handler
 │       ├── provider-choice.js Provider IDs & availability resolution
 │       ├── workers-ai/
 │       │   └── ask.js  Clef model mapping, AI binding, validation & timeout
@@ -278,6 +289,7 @@ gomoku-ai-jev/
 │   ├── classic.test.js Classical tactics & opening recognition tests
 │   ├── jev.test.js     Jev request builder, shortlist & runoff tests
 │   ├── providers.test.js Provider switches, model transport & fallback tests
+│   ├── move-api.test.js API input restrictions, legal records & model names
 │   ├── prefs.test.js   Settings URL/localStorage sync tests
 │   └── i18n.test.js    Localization key completeness tests
 └── assets/             Screenshots and media
