@@ -102,11 +102,12 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  height: 52px;
+  flex-wrap: wrap;
+  min-height: 52px;
   width: 100%;
   max-width: calc(var(--board-max) + var(--panel-w) + var(--gap) + var(--gutter) * 2);
   margin: 0 auto;
-  padding: 0 var(--gutter);
+  padding: 8px var(--gutter);
 }
 
 .brand {
@@ -114,6 +115,7 @@ body {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  order: 1;
 }
 
 /* A black and a white stone, overlapping. */
@@ -160,7 +162,95 @@ html.dark .brand-mark::before {
   gap: 6px;
   align-items: center;
   flex-shrink: 0;
+  margin-left: auto;
+  order: 3;
 }
+
+.provider-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.provider-toggle a,
+.provider-toggle > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 28px;
+  padding: 0 8px;
+  border-radius: 5px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.provider-toggle a:hover { background: var(--surface); color: var(--text); }
+.provider-toggle a[aria-current="page"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-sm);
+}
+.provider-toggle [aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.model-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  order: 2;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.model-status-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  border: 0;
+  border-radius: 5px;
+  padding: 3px 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.model-status-trigger:hover { background: var(--accent-soft); }
+.model-status-info { color: var(--text-muted); }
+.model-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+#model-status-name { font-weight: 600; color: var(--text); }
+.model-status-divider { color: var(--border-strong); }
+.provider-note { width: 100%; color: var(--text-muted); font-size: 0.72rem; }
+.model-details {
+  position: fixed;
+  inset: auto;
+  top: var(--details-top, 80px);
+  left: var(--details-left, 16px);
+  margin: 0;
+  width: min(390px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font-size: 0.85rem;
+  z-index: 100;
+}
+.model-details:modal { inset: 0; margin: auto; }
+.model-details::backdrop { background: rgba(20, 17, 14, 0.4); }
+.model-details-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.model-details h2 { font-size: 1rem; }
+.model-details dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; }
+.model-details dt { color: var(--text-muted); }
+.model-details dd { font-weight: 600; overflow-wrap: anywhere; }
+.model-details p { color: var(--text-muted); margin-top: 14px; line-height: 1.6; }
 
 /* ─── Buttons ──────────────────────────────────────────────────────────────── */
 .btn {
@@ -547,7 +637,7 @@ html.dark .brand-mark::before {
 
 /* ─── Short landscape screens (phones on their side) ───────────────────────── */
 @media (max-height: 520px) and (orientation: landscape) {
-  .header-inner { height: 44px; }
+  .header-inner { min-height: 44px; }
   .app-main { padding-top: 12px; padding-bottom: max(12px, env(safe-area-inset-bottom)); gap: 12px; }
   .panel { padding: 10px; gap: 10px; }
   .status-bar { min-height: 38px; }
@@ -566,9 +656,12 @@ html.dark .brand-mark::before {
   }
 
   .header-inner {
-    height: 48px;
+    min-height: 48px;
     max-width: calc(560px + var(--gutter) * 2);
   }
+
+  .header-actions { order: 2; }
+  .model-status { order: 3; flex-basis: 100%; }
 
   .app-main {
     grid-template-columns: minmax(0, 1fr);
@@ -629,8 +722,13 @@ html.dark .brand-mark::before {
   }
 }
 
-@media (max-width: 359px) {
+@media (max-width: 479px) {
   #btn-lang-text { display: none; }
+  .brand { gap: 7px; }
+}
+
+@media (max-width: 359px) {
+  .brand-mark { display: none; }
   .app-header h1 { font-size: 1rem; }
 }
 

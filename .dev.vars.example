@@ -1,13 +1,18 @@
-# Local Worker secret for development. Gitignored.
-# Copy this file to .dev.vars and fill in your actual API key:
+# Optional local Jev secret. Clef uses the remote AI binding and Wrangler login.
+# Copy this file to .dev.vars and fill in your actual API key to enable Jev:
 #   cp .dev.vars.example .dev.vars
 #
 # Production deployment uses:
 #   pnpm exec wrangler secret put TYPESAFE_API_KEY
 
-TYPESAFE_API_KEY=your_typesafe_api_key_here
+# TYPESAFE_API_KEY=your_typesafe_api_key_here
 
 # Optional: Override public vars defined in wrangler.jsonc if needed
+# AI_CLEF_ENABLED=true
+# AI_JEV_ENABLED=true
+# AI_DEFAULT_PROVIDER=jev
+# CLEF_MIN_CONFIDENCE=0
+# CLEF_TIMEOUT_MS=6000
 # TYPESAFE_BASE_URL=https://api.typesafe.ai
 # TYPESAFE_DEFAULT_MODEL=jev-latest
 # JEV_MIN_CONFIDENCE=0

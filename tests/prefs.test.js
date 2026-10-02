@@ -189,7 +189,7 @@ describe('urlWithChoice', () => {
 
 describe('early boot markup', () => {
   it('uses the same language and theme keys as CHOICES', () => {
-    const src = readFileSync(new URL('../src/pages/index.astro', import.meta.url), 'utf8');
+    const src = readFileSync(new URL('../src/components/Game.astro', import.meta.url), 'utf8');
     for (const key of ['lang', 'theme']) {
       const choice = CHOICES[key];
       assert.ok(src.includes(choice.storageKey), choice.storageKey);

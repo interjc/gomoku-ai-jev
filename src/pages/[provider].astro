@@ -1,0 +1,16 @@
+---
+import { env } from 'cloudflare:workers';
+import { getProviderConfig } from '../lib/providers.js';
+import { PROVIDERS } from '../lib/provider-choice.js';
+import Game from '../components/Game.astro';
+
+export const prerender = false;
+const { provider } = Astro.params;
+if (!PROVIDERS.includes(provider)) return new Response('Not found', { status: 404 });
+const config = getProviderConfig(env);
+if (!config.providers.find(item => item.id === provider)?.available) {
+  return Astro.redirect(`${config.defaultProvider ? `/${config.defaultProvider}` : '/'}${Astro.url.search}`, 302);
+}
+---
+
+<Game provider={provider} config={config} />

@@ -6,7 +6,7 @@ import {
   BOARD_SIZE, EMPTY, BLACK, WHITE,
   createBoard, placeStone, isValidMove, checkWin, getWinLine, isFull,
 } from '../lib/gomoku.js';
-import { getAIMove } from '../lib/ai.js';
+import { DIFFICULTY, getAIMove } from '../lib/ai.js';
 import { t } from '../lib/i18n.js';
 import { loadPrefs, commitManualChoice } from '../lib/prefs.js';
 
@@ -30,6 +30,8 @@ function persistChoice(key, value) {
 // ── State ─────────────────────────────────────────────────────────────────────
 // URL, then localStorage, then the default. Loading does not write storage.
 const prefs = loadPrefs(location.search, browserStorage());
+const providerConfig = JSON.parse(document.getElementById('provider-config').textContent);
+const provider = providerConfig.provider;
 let board = createBoard();
 let currentPlayer = BLACK;
 let playerColor = prefs.color === 'white' ? WHITE : BLACK;
@@ -40,6 +42,9 @@ let dark = prefs.theme === 'dark';
 let moveHistory = [];          // [{row, col, player}]
 let winLine = null;
 let aiBusy = false;
+let gameRevision = 0;
+let aiController = null;
+let aiTimer = null;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const canvas        = document.getElementById('board-canvas');
@@ -56,6 +61,11 @@ const newBtn        = document.getElementById('btn-new');
 const undoBtn       = document.getElementById('btn-undo');
 const diffSel       = document.getElementById('sel-difficulty');
 const colorSel      = document.getElementById('sel-color');
+const modelBtn      = document.getElementById('btn-model-details');
+const modelDialog   = document.getElementById('model-details');
+let detailsModal = false;
+let detailsHoverBlocked = false;
+let detailsTimer = null;
 
 // ── Canvas geometry ───────────────────────────────────────────────────────────
 const PADDING   = 32;
@@ -213,9 +223,10 @@ function setLanguage(newLang) {
 // ── UI text ───────────────────────────────────────────────────────────────────
 function updateUI() {
   document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
-  document.title            = t(lang, 'title');
+  document.title            = `${t(lang, 'title')} · ${provider === 'clef' ? 'Clef' : provider === 'jev' ? 'Jev' : t(lang, 'localModel')}`;
   thinkEl.textContent       = t(lang, 'thinking');
   document.getElementById('app-title').textContent = t(lang, 'title');
+  updateModelStatus();
   newBtn.textContent        = t(lang, 'newGame');
   undoBtn.textContent       = t(lang, 'undo');
   if (langBtnText) {
@@ -241,6 +252,72 @@ function updateUI() {
 
   updateStatus();
   renderHistory();
+}
+
+function updateModelStatus() {
+  const toggle = document.getElementById('provider-toggle');
+  toggle.setAttribute('aria-label', t(lang, 'chooseOpponent'));
+  const notes = [];
+  for (const item of providerConfig.providers) {
+    const control = toggle.querySelector(`[data-provider="${item.id}"]`);
+    if (item.available) {
+      const url = new URL(location.href);
+      url.pathname = `/${item.id}`;
+      control.href = `${url.pathname}${url.search}${url.hash}`;
+      control.title = t(lang, 'switchOpponent');
+    } else {
+      const reason = t(lang, item.reason === 'disabled' ? 'providerDisabled' : 'providerUnconfigured');
+      control.title = reason;
+      notes.push(`${item.id === 'clef' ? 'Clef' : 'Jev'}: ${reason}`);
+    }
+  }
+  const modelName = provider === 'clef' ? (difficulty === 'hard' || difficulty === 'master' ? 'Clef' : 'Clef Flash')
+    : provider === 'jev' ? 'Jev'
+      : t(lang, 'localModel');
+  document.getElementById('model-status-name').textContent = modelName;
+  const depth = provider ? DIFFICULTY[difficulty].maxDepth
+    : (FALLBACK_LIMITS[difficulty].maxDepth ?? DIFFICULTY[difficulty].maxDepth);
+  const strength = difficulty === 'easy' ? t(lang, 'positionOnly')
+    : `${t(lang, 'searchDepth', depth)}${difficulty === 'master' ? ` · ${t(lang, 'classicStrength')}` : ''}`;
+  document.getElementById('model-status-strength').textContent = t(lang, difficulty);
+  const modelId = provider === 'clef' ? `@cf/cloudflare/${difficulty === 'hard' || difficulty === 'master' ? 'clef' : 'clef-flash'}`
+    : provider === 'jev' ? providerConfig.providers.find(item => item.id === 'jev').model : t(lang, 'localModel');
+  document.getElementById('model-details-model').textContent = modelId;
+  document.getElementById('model-details-strength').textContent = `${t(lang, difficulty)} · ${strength}`;
+  document.getElementById('model-details-title').textContent = t(lang, 'opponentDetails');
+  document.getElementById('model-details-model-label').textContent = t(lang, 'modelLabel');
+  document.getElementById('model-details-strength-label').textContent = t(lang, 'strengthLabel');
+  document.getElementById('model-details-description').textContent = t(lang, provider ? `details${difficulty}` : 'detailsLocal');
+  document.getElementById('btn-close-model-details').setAttribute('aria-label', t(lang, 'closeDetails'));
+  modelBtn.setAttribute('aria-label', `${modelName} · ${t(lang, difficulty)} — ${t(lang, 'opponentDetails')}`);
+  const note = document.getElementById('provider-note');
+  note.textContent = notes.join(' · ');
+  note.hidden = notes.length === 0;
+}
+
+function openModelDetails(modal) {
+  clearTimeout(detailsTimer);
+  if (modelDialog.open) {
+    if (!modal || detailsModal) return;
+    modelDialog.close();
+  }
+  detailsModal = modal;
+  if (modal) {
+    modelDialog.showModal();
+  } else {
+    const bounds = modelBtn.getBoundingClientRect();
+    const width = Math.min(390, window.innerWidth - 32);
+    modelDialog.style.setProperty('--details-top', `${bounds.bottom + 8}px`);
+    modelDialog.style.setProperty('--details-left', `${Math.max(16, Math.min(bounds.left, window.innerWidth - width - 16))}px`);
+    const active = document.activeElement;
+    modelDialog.show();
+    active?.focus({ preventScroll: true });
+  }
+  modelBtn.setAttribute('aria-expanded', 'true');
+}
+
+function scheduleDetailsClose() {
+  if (!detailsModal) detailsTimer = setTimeout(() => modelDialog.close(), 180);
 }
 
 function updateStatus() {
@@ -278,6 +355,7 @@ function renderHistory() {
 
 // ── Game logic ────────────────────────────────────────────────────────────────
 function newGame() {
+  cancelAI();
   board         = createBoard();
   currentPlayer = BLACK;
   gameOver      = false;
@@ -292,6 +370,14 @@ function newGame() {
   if (playerColor === WHITE) {
     doAIMove();
   }
+}
+
+function cancelAI() {
+  gameRevision += 1;
+  clearTimeout(aiTimer);
+  aiTimer = null;
+  aiController?.abort();
+  aiController = null;
 }
 
 function makeMove(row, col) {
@@ -337,16 +423,23 @@ const FALLBACK_LIMITS = {
   master: { maxDepth: 6, nodeBudget: 60_000 },
 };
 
-async function playAITurn(boardAtStart, aiColor) {
+async function playAITurn(boardAtStart, aiColor, revision, level) {
+  const stale = () => revision !== gameRevision || board !== boardAtStart || gameOver;
+  if (stale()) return;
+  const controller = new AbortController();
+  aiController = controller;
   let move = null;
   try {
+    if (!provider) throw new Error('Local-only game');
     const res = await fetch('/api/move', {
       method: 'POST',
+      signal: controller.signal,
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         board: boardAtStart,
         player: aiColor,
-        difficulty,
+        difficulty: level,
+        provider,
         history: moveHistory.map(mv => ({
           row: mv.row,
           col: mv.col,
@@ -356,19 +449,28 @@ async function playAITurn(boardAtStart, aiColor) {
     });
     if (!res.ok) throw new Error('move request failed');
     const data = await res.json();
-    if (board !== boardAtStart || gameOver) return;
+    if (stale()) return;
     if (isValidMove(board, data.row, data.col)) move = [data.row, data.col];
   } catch {
-    if (board !== boardAtStart || gameOver) return;
+    if (stale()) return;
+  } finally {
+    if (aiController === controller) aiController = null;
   }
 
   if (!move) {
-    if (board !== boardAtStart || gameOver) return;
-    // Only reached when the Worker is unreachable. This runs on the main
-    // thread, so cap the search well below what the server allows.
-    move = getAIMove(board, aiColor, difficulty, FALLBACK_LIMITS[difficulty]);
+    if (stale()) return;
+    // Offline or no available provider. This runs on the main thread, so cap
+    // the search well below what the server allows.
+    move = getAIMove(board, aiColor, level, FALLBACK_LIMITS[level]);
   }
 
+  if (!move) {
+    aiBusy = false;
+    thinkEl.hidden = true;
+    gameOver = true;
+    showResult(null);
+    return;
+  }
   const [row, col] = move;
   applyMove(row, col, aiColor);
   aiBusy = false;
@@ -388,7 +490,9 @@ function doAIMove() {
   updateStatus();
 
   const boardAtStart = board;
-  setTimeout(() => { void playAITurn(boardAtStart, aiColor); }, 20);
+  const revision = gameRevision;
+  const level = difficulty;
+  aiTimer = setTimeout(() => { void playAITurn(boardAtStart, aiColor, revision, level); }, 20);
 }
 
 function undo() {
@@ -398,6 +502,7 @@ function undo() {
     winLine  = null;
   }
   if (moveHistory.length === 0) return;
+  cancelAI();
 
   // Remove last two moves (player + AI), or one if AI hasn't moved yet
   const toRemove = moveHistory.length >= 2 ? 2 : 1;
@@ -462,7 +567,41 @@ undoBtn.addEventListener('click',  undo);
 diffSel.addEventListener('change', () => {
   const value = persistChoice('difficulty', diffSel.value);
   if (value) difficulty = value;
+  updateModelStatus();
 });
+
+document.querySelector('#provider-toggle a[aria-current="page"]')?.addEventListener('click', event => {
+  event.preventDefault();
+});
+
+modelBtn.addEventListener('click', () => openModelDetails(true));
+modelBtn.addEventListener('pointerenter', () => {
+  if (!detailsModal && !detailsHoverBlocked
+    && matchMedia('(hover: hover) and (pointer: fine)').matches) openModelDetails(false);
+});
+modelBtn.addEventListener('pointerleave', () => {
+  detailsHoverBlocked = false;
+  scheduleDetailsClose();
+});
+modelDialog.addEventListener('pointerenter', () => clearTimeout(detailsTimer));
+modelDialog.addEventListener('pointerleave', scheduleDetailsClose);
+modelDialog.addEventListener('close', () => {
+  if (modelDialog.open) return;
+  // Closing a modal reveals the trigger under the pointer. Require a fresh
+  // hover before opening again, including when Escape restored its focus.
+  if (detailsModal) detailsHoverBlocked = modelBtn.matches(':hover');
+  detailsModal = false;
+  modelBtn.setAttribute('aria-expanded', 'false');
+});
+document.getElementById('btn-close-model-details').addEventListener('click', () => modelDialog.close());
+modelDialog.addEventListener('click', event => {
+  const bounds = modelDialog.getBoundingClientRect();
+  if (event.target === modelDialog && (event.clientX < bounds.left || event.clientX > bounds.right
+    || event.clientY < bounds.top || event.clientY > bounds.bottom)) modelDialog.close();
+});
+window.addEventListener('scroll', () => {
+  if (!detailsModal) modelDialog.close();
+}, { passive: true });
 
 colorSel.addEventListener('change', () => {
   const value = persistChoice('color', colorSel.value);

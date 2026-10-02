@@ -7,7 +7,16 @@
   "assets": {
     "binding": "ASSETS"
   },
+  "ai": {
+    "binding": "AI",
+    "remote": true
+  },
   "vars": {
+    "AI_CLEF_ENABLED": "true",
+    "AI_JEV_ENABLED": "true",
+    "AI_DEFAULT_PROVIDER": "jev",
+    "CLEF_MIN_CONFIDENCE": "0",
+    "CLEF_TIMEOUT_MS": "6000",
     "TYPESAFE_BASE_URL": "https://api.typesafe.ai",
     "TYPESAFE_DEFAULT_MODEL": "jev-latest",
     "JEV_MIN_CONFIDENCE": "0"

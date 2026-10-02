@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 
 import { BOARD_SIZE, EMPTY, BLACK, WHITE } from '../../lib/gomoku.js';
-import { askJev, readJevConfig } from '../../lib/jev/ask.js';
+import { createProvider } from '../../lib/providers.js';
 import { chooseMove } from '../../lib/jev/move.js';
 
 export const prerender = false;
@@ -41,16 +41,21 @@ export async function POST({ request }) {
   const difficulty = ['easy', 'medium', 'hard', 'master'].includes(body.difficulty)
     ? body.difficulty
     : 'hard';
-  const config = readJevConfig(env);
-  const ask = config.apiKey ? (jevRequest) => askJev(env, jevRequest) : null;
+  let provider;
+  try {
+    provider = createProvider(env, body.provider, difficulty);
+  } catch (error) {
+    return json({ error: error.message }, 400);
+  }
   const move = await chooseMove({
     board: body.board,
     player: body.player,
     difficulty,
     history: body.history,
-    minConfidence: config.minConfidence,
-    ask,
+    minConfidence: provider.minConfidence,
+    ask: provider.ask,
+    source: provider.id ?? 'local',
   });
 
-  return json(move);
+  return json({ ...move, provider: provider.id, model: move.source === provider.id ? provider.model : null });
 }

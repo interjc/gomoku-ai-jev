@@ -435,6 +435,7 @@ function ruleMove(row, col) {
  * @param {'easy'|'medium'|'hard'|'master'} [options.difficulty]
  * @param {Array<{row: number, col: number, player: number}>} [options.history]
  * @param {number} [options.minConfidence]
+ * @param {string} [options.source] Provider attribution for model decisions.
  * @param {(request: object) => Promise<{choice?: string, confidence?: number,
  *          probabilities?: Record<string, number>}> | null} [options.ask]
  */
@@ -444,6 +445,7 @@ export async function chooseMove({
   difficulty = 'hard',
   history = [],
   minConfidence = 0.5,
+  source = 'jev',
   ask,
 }) {
   const level = LEVELS[difficulty] ? difficulty : 'hard';
@@ -531,13 +533,13 @@ export async function chooseMove({
 
     // Easy and medium take Jev's pick as it stands.
     if (offered.length === 0) {
-      return { row: picked[0], col: picked[1], source: 'jev', confidence, depth, nodes, rounds: 1 };
+      return { row: picked[0], col: picked[1], source, confidence, depth, nodes, rounds: 1 };
     }
 
     const inBand = offered.some(entry => entry.row === picked[0] && entry.col === picked[1]);
     if (!inBand) return searchFallback();
     if (!cfg.band) {
-      return { row: picked[0], col: picked[1], source: 'jev', confidence, depth, nodes, rounds: 1 };
+      return { row: picked[0], col: picked[1], source, confidence, depth, nodes, rounds: 1 };
     }
 
     const combined = blend(offered, answer);
@@ -565,7 +567,7 @@ export async function chooseMove({
             return {
               row: top.row,
               col: top.col,
-              source: 'jev',
+              source,
               confidence: Number(second?.confidence) || confidence,
               depth: deeper.depth,
               nodes: nodes + deeper.nodes,
@@ -581,7 +583,7 @@ export async function chooseMove({
 
     const top = combined[0];
     return {
-      row: top.row, col: top.col, source: 'jev', confidence, depth, nodes, rounds: 1,
+      row: top.row, col: top.col, source, confidence, depth, nodes, rounds: 1,
     };
   } catch {
     return searchFallback();
