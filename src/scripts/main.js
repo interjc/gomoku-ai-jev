@@ -271,7 +271,7 @@ function updateModelStatus() {
       notes.push(`${item.id === 'clef' ? 'Clef' : 'Jev'}: ${reason}`);
     }
   }
-  const modelName = provider === 'clef' ? (difficulty === 'hard' || difficulty === 'master' ? 'Clef' : 'Clef Flash')
+  const modelName = provider === 'clef' ? (difficulty === 'master' ? 'Clef' : 'Clef Flash')
     : provider === 'jev' ? 'Jev'
       : t(lang, 'localModel');
   document.getElementById('model-status-name').textContent = modelName;

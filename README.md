@@ -61,7 +61,7 @@ The [Workers AI binding](https://developers.cloudflare.com/workers-ai/configurat
 |------------|----------|------------------|
 | Easy | `@cf/cloudflare/clef-flash` | `clef-flash` |
 | Medium | `@cf/cloudflare/clef-flash` | `clef-flash` |
-| Hard (default) | `@cf/cloudflare/clef` | `clef` |
+| Hard (default) | `@cf/cloudflare/clef-flash` | `clef-flash` |
 | Master | `@cf/cloudflare/clef` | `clef` |
 
 Both rounds of a hard/master decision use the same model. No TypeSafe key or separate Cloudflare inference key is needed for the AI binding. For development, log in with `pnpm exec wrangler login`. The Worker runs locally, but `remote: true` sends inference to Cloudflare; these calls consume real Workers AI usage. See [remote bindings](https://developers.cloudflare.com/workers/local-development/#remote-bindings) and [Clef Flash](https://developers.cloudflare.com/workers-ai/models/clef-flash/).

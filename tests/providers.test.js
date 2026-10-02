@@ -78,8 +78,8 @@ describe('provider capabilities', () => {
 });
 
 describe('Clef move transport', () => {
-  it('uses Flash only for easy and medium and the full model for hard and master', async () => {
-    for (const [difficulty, selector] of [['easy', 'clef-flash'], ['medium', 'clef-flash'], ['hard', 'clef'], ['master', 'clef']]) {
+  it('uses Flash for easy, medium, and hard, and the full model for master', async () => {
+    for (const [difficulty, selector] of [['easy', 'clef-flash'], ['medium', 'clef-flash'], ['hard', 'clef-flash'], ['master', 'clef']]) {
       let called;
       const env = { AI: { async run(model, payload) {
         called = { model, payload };
@@ -115,7 +115,10 @@ describe('Clef move transport', () => {
     let board = placeStone(createBoard(), 7, 7, BLACK);
     board = placeStone(board, 7, 8, WHITE);
     board = placeStone(board, 8, 8, BLACK);
-    for (const failRunoff of [false, true]) {
+    for (const [failRunoff, difficulty, expectedModel] of [
+      [false, 'hard', '@cf/cloudflare/clef-flash'],
+      [true, 'master', '@cf/cloudflare/clef'],
+    ]) {
       const calls = [];
       const provider = createProvider({ AI: { async run(model, payload) {
         calls.push(model);
@@ -125,9 +128,9 @@ describe('Clef move transport', () => {
           choice: keys[0], confidence: 0.3,
           probabilities: Object.fromEntries(keys.map(key => [key, 1 / keys.length])),
         } } };
-      } } }, 'clef', 'hard');
-      const move = await chooseMove({ board, player: WHITE, difficulty: 'hard', ...provider, source: provider.id });
-      assert.deepEqual(calls, ['@cf/cloudflare/clef', '@cf/cloudflare/clef']);
+      } } }, 'clef', difficulty);
+      const move = await chooseMove({ board, player: WHITE, difficulty, ...provider, source: provider.id });
+      assert.deepEqual(calls, [expectedModel, expectedModel]);
       assert.equal(move.source, 'clef');
       assert.equal(move.rounds, failRunoff ? 1 : 2);
     }

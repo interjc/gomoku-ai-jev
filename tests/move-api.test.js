@@ -96,7 +96,8 @@ describe('Gomoku-only move API', () => {
 
   it('accepts legal records, defaults to hard, and returns only the model display name', async () => {
     for (const [difficulty, id, name] of [['easy', '@cf/cloudflare/clef-flash', 'Clef Flash'],
-      [undefined, '@cf/cloudflare/clef', 'Clef']]) {
+      [undefined, '@cf/cloudflare/clef-flash', 'Clef Flash'],
+      ['master', '@cf/cloudflare/clef', 'Clef']]) {
       const calls = [];
       const env = { AI: { async run(model, payload) {
         calls.push({ model, payload });

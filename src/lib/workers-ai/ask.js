@@ -1,6 +1,6 @@
 /** Workers AI System One adapter. Inference always runs on Cloudflare. */
 export function clefModel(difficulty) {
-  const selector = difficulty === 'hard' || difficulty === 'master' ? 'clef' : 'clef-flash';
+  const selector = difficulty === 'master' ? 'clef' : 'clef-flash';
   return { id: `@cf/cloudflare/${selector}`, selector };
 }
 
