@@ -1,6 +1,6 @@
 # Gomoku AI — Clef & Jev
 
-A browser-based Gomoku (five-in-a-row) game. The Worker searches the position and Clef or Jev chooses among the moves the search cannot separate. Jev is the default opponent, and Hard is the default difficulty. The site is an Astro app deployed to Cloudflare Workers.
+A browser-based Gomoku (five-in-a-row) game. The Worker searches the position and Clef or Jev chooses among the moves the search cannot separate. Clef is the default opponent, and Hard is the default difficulty. The site is an Astro app deployed to Cloudflare Workers.
 
 **Live demo:** https://gomoku.games.interjc.net/
 
@@ -26,7 +26,7 @@ A browser-based Gomoku (five-in-a-row) game. The Worker searches the position an
 
 ## Providers & Configuration
 
-Both providers are enabled by default. The deployment default is **Jev**, while **Hard** is the default difficulty for visitors without a saved or URL-specified difficulty. The title links to `/jev` and `/clef`. Choosing the other opponent performs a full navigation and starts a fresh game; difficulty, side, language, and theme retain their existing URL/localStorage behavior. Switching preserves query parameters and the hash. The provider itself is specified by the path, rather than a query parameter or localStorage.
+Both providers are enabled by default. The deployment default is **Clef**, while **Hard** is the default difficulty for visitors without a saved or URL-specified difficulty. The title links to `/jev` and `/clef`. Choosing the other opponent performs a full navigation and starts a fresh game; difficulty, side, language, and theme retain their existing URL/localStorage behavior. Switching preserves query parameters and the hash. The provider itself is specified by the path, rather than a query parameter or localStorage.
 
 The root `/` redirects to the configured default opponent. A disabled or unconfigured opponent redirects to the available default. If neither provider is available, `/` serves a local-engine game and disables both toggle options. Unknown opponent paths return 404. Pages read deployment configuration at request time and are not cached.
 
@@ -41,17 +41,15 @@ The root `/` redirects to the configured default opponent. A disabled or unconfi
   "vars": {
     "AI_CLEF_ENABLED": "true",
     "AI_JEV_ENABLED": "true",
-    "AI_DEFAULT_PROVIDER": "jev",
+    "AI_DEFAULT_PROVIDER": "clef",
     "CLEF_MIN_CONFIDENCE": "0",
     "CLEF_TIMEOUT_MS": "6000",
-    "TYPESAFE_BASE_URL": "https://api.typesafe.ai",
-    "TYPESAFE_DEFAULT_MODEL": "jev-latest",
     "JEV_MIN_CONFIDENCE": "0"
   }
 }
 ```
 
-`AI_CLEF_ENABLED` and `AI_JEV_ENABLED` independently enable each opponent; set either to `"false"` to disable it. `AI_DEFAULT_PROVIDER` accepts `"jev"` or `"clef"`. A provider also needs its transport configured: the `AI` binding for Clef, or a `TYPESAFE_API_KEY` for Jev. If the configured default is unavailable, the available opponent becomes the default. Explicit move requests for an unknown, disabled, or unconfigured provider return HTTP 400.
+`AI_CLEF_ENABLED` and `AI_JEV_ENABLED` independently enable each opponent; set either to `"false"` to disable it. `AI_DEFAULT_PROVIDER` accepts `"jev"` or `"clef"`. Both providers require the `AI` binding; neither requires a TypeSafe API key. If the configured default is unavailable, the available opponent becomes the default. Explicit move requests for an unknown, disabled, or unconfigured provider return HTTP 400.
 
 ### Clef through Workers AI
 
@@ -68,31 +66,18 @@ Both rounds of a hard/master decision use the same model. No TypeSafe key or sep
 
 `CLEF_MIN_CONFIDENCE` sets the acceptance floor (0–1). `CLEF_TIMEOUT_MS` bounds each model call, with no automatic retry. The timeout stops waiting for the result; it does not guarantee cancellation of inference already running remotely. On failure, timeout, or an invalid answer, the Worker uses its existing search fallback. A failed second round keeps the valid first-round decision. It does not automatically call the other provider.
 
-### Jev API key and compatible endpoints
+### Jev through Cloudflare
 
-The existing Jev connector, API key, endpoint, and confidence settings are retained. `TYPESAFE_DEFAULT_MODEL` must be `jev-latest`; any other value makes Jev unavailable and its transport rejects inference before sending a request.
+Jev uses the same `AI` binding as Clef with the fixed model ID [`typesafe/jev`](https://developers.cloudflare.com/ai/models/typesafe/jev/). Its request contains `state` and the typed `move` question. Both rounds use Jev, with a six-second timeout per call and no automatic retry. Responses use the same choice and probability validation as Clef.
 
-1. Obtain a key from [TypeSafe](https://api.typesafe.ai).
-2. For local development, copy `.dev.vars.example` to `.dev.vars` (gitignored), then uncomment and set:
-   ```ini
-   TYPESAFE_API_KEY=your_typesafe_api_key_here
-   ```
-3. For production, store the key as a Worker secret:
-   ```sh
-   pnpm exec wrangler secret put TYPESAFE_API_KEY
-   ```
-
-`TYPESAFE_BASE_URL` still supports a Jev-compatible custom endpoint. The model is restricted to Jev. Local settings may override the public Wrangler variables in `.dev.vars`, for example:
+`JEV_MIN_CONFIDENCE` retains the Jev acceptance floor. The TypeSafe SDK, API key, custom endpoint, and model environment settings are no longer used. Local settings may override public Wrangler variables in `.dev.vars`, for example:
 
 ```ini
 AI_DEFAULT_PROVIDER=clef
-# Optional custom Jev endpoint:
-# TYPESAFE_BASE_URL=https://your-custom-endpoint.com
-# TYPESAFE_DEFAULT_MODEL=jev-latest
 # JEV_MIN_CONFIDENCE=0
 ```
 
-With no Jev key, its title option is disabled and the default falls back to Clef. If a configured model call fails, the game continues with the built-in engine. The details modal explains unavailable options and describes the selected search profile; it is not an Elo rating or a guarantee that every turn requires a model call.
+If the AI binding is unavailable, both title options are disabled. If a configured model call fails, the game continues with the built-in engine. The details modal explains unavailable options and describes the selected search profile; it is not an Elo rating or a guarantee that every turn requires a model call.
 
 ## Development
 
@@ -109,7 +94,7 @@ With no Jev key, its title option is disabled and the default falls back to Clef
    ```
 
 2. **Configure environment variables**:
-   Run `pnpm exec wrangler login` for remote Workers AI inference. To use the default Jev opponent, copy `.dev.vars.example` to `.dev.vars` and set `TYPESAFE_API_KEY` (see [Providers & Configuration](#providers--configuration)). Clef is available without a Jev key.
+   Run `pnpm exec wrangler login` for remote Cloudflare inference with Clef and Jev. Optionally copy `.dev.vars.example` to `.dev.vars` to override public settings (see [Providers & Configuration](#providers--configuration)).
 
 3. **Start the local server**:
    ```sh
@@ -142,12 +127,7 @@ The production target is a Cloudflare Worker using `@astrojs/cloudflare` as the 
    pnpm exec wrangler login
    ```
 
-2. **Set the Jev API secret** (required for the default Jev opponent):
-   ```sh
-   pnpm exec wrangler secret put TYPESAFE_API_KEY
-   ```
-
-3. **Build and deploy**:
+2. **Build and deploy**:
    ```sh
    pnpm run deploy
    ```
@@ -160,12 +140,12 @@ The Worker name is `gomoku-ai-jev`. On the first deployment, it will be availabl
 When using Git integration via Cloudflare Workers Builds:
 - **Build command**: `pnpm run build`
 - **Deploy command**: `pnpm exec wrangler deploy`
-- **Secrets**: To enable Jev, add `TYPESAFE_API_KEY` as an encrypted secret under Worker **Settings > Variables and Secrets**.
+- **AI binding**: Clef and Jev both use the `AI` binding configured in `wrangler.jsonc`; no TypeSafe secret is required.
 - **Public variables**: Defined in `wrangler.jsonc` and deployed automatically.
 
 ## Model decisions
 
-Clef and Jev share the same request builder, search shortlist, blending, and runoff. The provider adapter returns `{ choice, confidence, probabilities }`. Clef uses `env.AI.run()`; Jev uses the existing TypeSafe SDK.
+Clef and Jev share the same request builder, search shortlist, blending, and runoff. The provider adapter returns `{ choice, confidence, probabilities }`. Both use `env.AI.run()` through Cloudflare.
 
 [Jev](https://docs.typesafe.ai/introduction) is TypeSafe's flagship System One model. It does not write a reply or search a game tree. A program sends the current facts as `state` and asks a typed question. Jev returns a structured answer the program can branch on.
 
@@ -188,7 +168,7 @@ When the model's confidence is under 0.6, or the blend leaves the top two within
 
 An immediate five, or a block of the opponent's immediate five, is still played in code above easy. On Master, unambiguous classical winning tactics (continuous fours / VCF, four-threes) and jump-four blocks are played directly without asking the model. If the request fails, the point is illegal, or it falls outside the band, the Worker returns its own search move.
 
-The Worker calls `jev-latest` through the [TypeSafe JavaScript SDK](https://docs.typesafe.ai/sdk/javascript). The API key stays in `.dev.vars` locally and in a Worker secret in production.
+The Worker calls Jev as `typesafe/jev` through the [Cloudflare AI binding](https://developers.cloudflare.com/ai/models/typesafe/jev/).
 
 ## How the AI Works
 
@@ -200,7 +180,7 @@ The API accepts only Gomoku positions, without an AI classification step:
 - Only `board`, `player`, `history`, `difficulty`, and `provider` are accepted. `board`, `player`, and the complete `history` are required. Difficulty defaults to hard and provider defaults to the available deployment default; supplied values must be valid enum values. Prompt, messages, model, state, instructions, and all other extra fields return 400.
 - The board must be a 15 × 15 numeric matrix of 0 (empty), 1 (black), or 2 (white). Each history entry contains only numeric `row`, `col`, and `player`. The server replays from an empty board, checks black-first alternating turns, integer coordinates, unique points, and exact agreement with the supplied board. The requested player must be next to move.
 - Won games, moves after a win, full boards, missing or inconsistent records, and malformed JSON return 400 before search or inference.
-- Workers AI IDs are fixed to `@cf/cloudflare/clef` and `@cf/cloudflare/clef-flash`; Jev is fixed to `jev-latest`. Clients cannot supply a model ID, endpoint, instructions, or candidate descriptions. The server generates the model request from the validated game.
+- Cloudflare model IDs are fixed to `@cf/cloudflare/clef`, `@cf/cloudflare/clef-flash`, and `typesafe/jev`. Clients cannot supply a model ID, endpoint, instructions, or candidate descriptions. The server generates the model request from the validated game.
 
 This verifies that input is a legal Gomoku record. It cannot prove that the record came from a human playing on this site, and does not rate-limit repeated legal game requests.
 
@@ -281,7 +261,7 @@ gomoku-ai-jev/
 │       ├── prefs.js    URL query parameters & localStorage preference handling
 │       ├── i18n.js     English / Japanese / Chinese translations
 │       └── jev/
-│           ├── ask.js  TypeSafe SDK client wrapper & configuration
+│           ├── ask.js  Cloudflare Jev adapter & confidence configuration
 │           └── move.js Shared request builder, candidate shortlisting & runoff
 ├── tests/
 │   ├── gomoku.test.js  Board rules & win detection tests

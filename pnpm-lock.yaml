@@ -11,9 +11,6 @@ importers:
       '@astrojs/cloudflare':
         specifier: ^14.3.0
         version: 14.3.2(astro@7.3.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3))(esbuild@0.28.2)(wrangler@4.135.0)
-      '@typesafe-ai/sdk':
-        specifier: ^0.6.0
-        version: 0.6.0
       astro:
         specifier: ^7.3.1
         version: 7.3.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)
@@ -925,10 +922,6 @@ packages:
 
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
-
-  '@typesafe-ai/sdk@0.6.0':
-    resolution: {integrity: sha512-IddX+Q0XM+VagOUZFeP7wZjaO4SHMdvnh2zEBdrZZnXedWI3BNK1lKhMx3ayrkFWvVLbVcUHJy6AVZlY+e6Jaw==}
-    engines: {node: '>=20'}
 
   '@ungap/structured-clone@1.4.0':
     resolution: {integrity: sha512-1mEZtMKPM09vDmQt5y7YvmN2+DFTP7Tg0EWXdic8/C6VRnpb33e4ghisCIE3WZjsE2N8mf+QV1Zqh7ZFYLWInQ==}
@@ -2366,8 +2359,6 @@ snapshots:
       '@types/unist': 3.0.3
 
   '@types/unist@3.0.3': {}
-
-  '@typesafe-ai/sdk@0.6.0': {}
 
   '@ungap/structured-clone@1.4.0': {}
 

@@ -124,20 +124,25 @@ describe('Gomoku-only move API', () => {
     assert.equal(opening.model, null);
   });
 
-  it('uses the Jev default and returns its display name without the upstream ID', async t => {
-    let calls = 0;
-    t.mock.method(globalThis, 'fetch', async (_, options) => {
-      calls++;
-      const keys = Object.keys(JSON.parse(options.body).questions.move.criteria);
-      return Response.json({ answers: { move: { choice: keys[0], confidence: 1,
-        probabilities: Object.fromEntries(keys.map((key, n) => [key, n ? 0 : 1])) } } });
-    });
-    const response = await handleMoveRequest(request({ ...game(), provider: undefined }), { TYPESAFE_API_KEY: 'test-key' });
-    assert.equal(response.status, 200);
-    const move = await response.json();
-    assert.equal(calls, 1);
-    assert.equal(move.model, 'Jev');
-    assert.equal(move.source, 'jev');
-    assert.ok(!JSON.stringify(move).includes('jev-latest'));
+  it('uses Clef by default and allows choosing Jev with only the AI binding', async () => {
+    for (const [provider, model, name, source] of [
+      [undefined, '@cf/cloudflare/clef-flash', 'Clef Flash', 'clef'],
+      ['jev', 'typesafe/jev', 'Jev', 'jev'],
+    ]) {
+      const calls = [];
+      const env = { AI: { async run(id, payload) {
+        calls.push(id);
+        const keys = Object.keys(payload.questions.move.criteria);
+        return { answers: { move: { choice: keys[0], confidence: 1,
+          probabilities: Object.fromEntries(keys.map((key, n) => [key, n ? 0 : 1])) } } };
+      } } };
+      const response = await handleMoveRequest(request({ ...game(), provider }), env);
+      assert.equal(response.status, 200);
+      const move = await response.json();
+      assert.deepEqual(calls, [model]);
+      assert.equal(move.model, name);
+      assert.equal(move.source, source);
+      assert.ok(!JSON.stringify(move).includes(model));
+    }
   });
 });

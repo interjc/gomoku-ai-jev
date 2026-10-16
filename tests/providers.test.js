@@ -3,14 +3,13 @@ import assert from 'node:assert/strict';
 import { getProviderConfig, createProvider } from '../src/lib/providers.js';
 import { chooseMove, buildJevRequest } from '../src/lib/jev/move.js';
 import { BLACK, WHITE, createBoard, placeStone } from '../src/lib/gomoku.js';
-import { askJev } from '../src/lib/jev/ask.js';
 
 const configured = { AI: { run() {} }, TYPESAFE_API_KEY: 'test-key' };
 
 describe('provider capabilities', () => {
-  it('defaults both providers on, selects Jev, and publishes no credentials', () => {
+  it('defaults both providers on, selects Clef, and publishes no credentials', () => {
     const config = getProviderConfig(configured);
-    assert.equal(config.defaultProvider, 'jev');
+    assert.equal(config.defaultProvider, 'clef');
     assert.ok(config.providers.every(item => item.enabled && item.available));
     assert.ok(!JSON.stringify(config).includes('test-key'));
   });
@@ -21,9 +20,8 @@ describe('provider capabilities', () => {
       [{ AI_CLEF_ENABLED: 'false' }, 'jev', [false, true]],
       [{ AI_JEV_ENABLED: 'false', AI_DEFAULT_PROVIDER: 'jev' }, 'clef', [true, false]],
       [{ AI_CLEF_ENABLED: 'false', AI_JEV_ENABLED: 'false' }, null, [false, false]],
-      [{ TYPESAFE_API_KEY: '', AI_DEFAULT_PROVIDER: 'jev' }, 'clef', [true, false]],
-      [{ AI: undefined }, 'jev', [false, true]],
-      [{ AI: undefined, TYPESAFE_API_KEY: '' }, null, [false, false]],
+      [{ TYPESAFE_API_KEY: '', AI_DEFAULT_PROVIDER: 'jev' }, 'jev', [true, true]],
+      [{ AI: undefined }, null, [false, false]],
       [{ AI_DEFAULT_PROVIDER: 'unknown' }, 'clef', [true, true]],
     ];
     for (const [overrides, expected, availability] of cases) {
@@ -38,42 +36,34 @@ describe('provider capabilities', () => {
   it('rejects explicitly unavailable or unknown providers instead of substituting another', () => {
     assert.throws(() => createProvider(configured, 'unknown', 'medium'), /Invalid provider/);
     assert.throws(() => createProvider({ ...configured, AI_JEV_ENABLED: 'false' }, 'jev', 'medium'), /unavailable/);
-    assert.throws(() => createProvider({ AI: configured.AI }, 'jev', 'medium'), /unavailable/);
+    assert.throws(() => createProvider({ TYPESAFE_API_KEY: 'test-key' }, 'jev', 'medium'), /unavailable/);
     assert.equal(createProvider({}, undefined, 'medium').ask, null);
   });
 
-  it('keeps the Jev SDK endpoint, model, key and confidence configuration', async t => {
+  it('calls Jev through the AI binding with the fixed model and configured confidence', async t => {
     const board = placeStone(createBoard(), 7, 7, BLACK);
     const request = buildJevRequest(board, WHITE, { difficulty: 'medium' });
-    const response = { choice: 'r7c8', confidence: 0.9, probabilities: { r7c8: 0.9 } };
+    const keys = Object.keys(request.criteria);
+    const response = { choice: keys[0], confidence: 0.9,
+      probabilities: Object.fromEntries(keys.map((key, index) => [key, index ? 0 : 1])) };
     let sent;
-    t.mock.method(globalThis, 'fetch', async (url, options) => {
-      sent = { url: String(url), options, body: JSON.parse(options.body) };
-      return Response.json({ answers: { move: response } });
-    });
+    t.mock.method(globalThis, 'fetch', async () => { assert.fail('Jev must use the AI binding'); });
     const provider = createProvider({
-      ...configured, TYPESAFE_BASE_URL: 'https://example.com/proxy',
-      TYPESAFE_DEFAULT_MODEL: 'jev-latest', JEV_MIN_CONFIDENCE: '0.7',
+      AI: { async run(model, payload) {
+        sent = { model, payload };
+        return { answers: { move: response } };
+      } },
+      // Legacy TypeSafe settings cannot redirect inference away from Cloudflare.
+      TYPESAFE_BASE_URL: 'https://example.com/proxy', TYPESAFE_DEFAULT_MODEL: 'custom-jev',
+      JEV_MIN_CONFIDENCE: '0.7',
     }, 'jev', 'master');
     assert.deepEqual(await provider.ask(request), response);
-    assert.equal(provider.model, 'jev-latest');
+    assert.equal(provider.model, 'typesafe/jev');
     assert.equal(provider.minConfidence, 0.7);
-    assert.equal(sent.url, 'https://example.com/proxy/v1/systemone');
-    assert.equal(new Headers(sent.options.headers).get('authorization'), 'Bearer test-key');
-    assert.equal(sent.body.model, 'jev-latest');
-    assert.deepEqual(sent.body.questions.move, { type: 'choice', instructions: request.instructions, criteria: request.criteria });
-  });
-
-  it('refuses other Jev model configurations before any upstream request', async t => {
-    let calls = 0;
-    t.mock.method(globalThis, 'fetch', async () => { calls++; throw new Error('Unexpected inference'); });
-    for (const model of ['custom-jev', '@cf/cloudflare/clef', 'gpt-4o']) {
-      const env = { ...configured, TYPESAFE_DEFAULT_MODEL: model };
-      assert.equal(getProviderConfig(env).providers.find(item => item.id === 'jev').available, false);
-      assert.throws(() => createProvider(env, 'jev', 'hard'), /unavailable/);
-      await assert.rejects(askJev(env, {}), /Unsupported Jev model/);
-    }
-    assert.equal(calls, 0);
+    assert.deepEqual(sent, { model: 'typesafe/jev', payload: {
+      state: request.state,
+      questions: { move: { type: 'choice', instructions: request.instructions, criteria: request.criteria } },
+    } });
   });
 });
 
