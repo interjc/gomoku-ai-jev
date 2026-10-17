@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "gomoku-ai-jev",
+  "account_id": "ebac04441f46c534986d969580bc7239",
   "main": "@astrojs/cloudflare/entrypoints/server",
   "compatibility_date": "2026-09-22",
   "compatibility_flags": ["nodejs_compat"],
@@ -12,6 +13,7 @@
     "remote": true
   },
   "vars": {
+    "WORKERS_PLAN": "free",
     "AI_CLEF_ENABLED": "true",
     "AI_JEV_ENABLED": "true",
     "AI_DEFAULT_PROVIDER": "clef",

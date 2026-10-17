@@ -1,7 +1,7 @@
 /** Public move endpoint: accept only a complete, legal, unfinished Gomoku record. */
 import { BOARD_SIZE, EMPTY, BLACK, WHITE, createBoard, checkWin } from './gomoku.js';
 import { createProvider } from './providers.js';
-import { chooseMove } from './jev/move.js';
+import { chooseMove, readWorkersPlan } from './jev/move.js';
 
 const MAX_BODY_BYTES = 16 * 1024;
 const FIELDS = ['board', 'player', 'history', 'difficulty', 'provider'];
@@ -115,7 +115,7 @@ export async function handleMoveRequest(request, env) {
   const move = await chooseMove({
     board: body.board, player: body.player, history: body.history,
     difficulty: body.difficulty ?? 'hard', minConfidence: provider.minConfidence,
-    ask: provider.ask, source: provider.id ?? 'local',
+    ask: provider.ask, source: provider.id ?? 'local', plan: readWorkersPlan(env),
   });
   const name = provider.id === 'jev' ? 'Jev'
     : provider.model === '@cf/cloudflare/clef' ? 'Clef' : 'Clef Flash';

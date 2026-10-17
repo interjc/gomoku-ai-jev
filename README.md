@@ -39,6 +39,7 @@ The root `/` redirects to the configured default opponent. A disabled or unconfi
     "remote": true
   },
   "vars": {
+    "WORKERS_PLAN": "free",
     "AI_CLEF_ENABLED": "true",
     "AI_JEV_ENABLED": "true",
     "AI_DEFAULT_PROVIDER": "clef",
@@ -50,6 +51,8 @@ The root `/` redirects to the configured default opponent. A disabled or unconfi
 ```
 
 `AI_CLEF_ENABLED` and `AI_JEV_ENABLED` independently enable each opponent; set either to `"false"` to disable it. `AI_DEFAULT_PROVIDER` accepts `"jev"` or `"clef"`. Both providers require the `AI` binding; neither requires a TypeSafe API key. If the configured default is unavailable, the available opponent becomes the default. Explicit move requests for an unknown, disabled, or unconfigured provider return HTTP 400.
+
+`WORKERS_PLAN` is `"free"` or `"paid"` and sets the hard and master search budgets to fit that plan's CPU limit. See [Workers Free and Paid plans](docs/workers-plans.md).
 
 ### Clef through Workers AI
 
@@ -222,7 +225,7 @@ Alpha-beta over a fixed root perspective, so every score still reads as "good fo
 - **Narrowing width.** The root keeps 12 candidates for a trustworthy ranking; deeper plies keep 8, then 5, and beyond ply 1 only points adjacent to a stone.
 - **Forced-move collapsing and threat extension.** When a five is available the node is cut to that single move, or to the points that must be occupied. A four or an open three extends the line past the nominal depth, which is what stops horizon blunders.
 
-Depth is bounded by a **node budget**, not a clock: on Cloudflare Workers `Date.now()` does not advance during pure computation, so a time budget would never fire. Hard and Master reach 6–8 plies — considerably further along forcing lines — in roughly 300–450 ms.
+Depth is bounded by a **node budget**, not a clock: on Cloudflare Workers `Date.now()` does not advance during pure computation, so a time budget would never fire. On the Paid plan, Hard and Master reach 6–8 plies (further along forcing lines) in roughly 300–450 ms. On the Free plan, smaller budgets keep each move within 10 ms of CPU and reach 2–4 plies. See [Workers Free and Paid plans](docs/workers-plans.md).
 
 Root moves are searched on a full window rather than a raised alpha. That costs pruning, but the point of the root pass is a trustworthy *ranking* for the model to read, and alpha raising would turn every non-best score into an upper bound.
 
@@ -234,6 +237,7 @@ For reference, the previous depth-4 engine re-evaluated the whole board for ever
 gomoku-ai-jev/
 ├── astro.config.mjs    Astro config, output server, @astrojs/cloudflare
 ├── wrangler.jsonc      AI binding, provider switches & public vars
+├── docs/               Deployment notes (Workers Free vs Paid plans)
 ├── .dev.vars.example   Example local development environment variables
 ├── src/
 │   ├── middleware.js   Disable caching for opponent pages and redirects

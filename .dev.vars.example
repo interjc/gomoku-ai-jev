@@ -2,6 +2,7 @@
 # No TypeSafe API key is needed. Run: pnpm exec wrangler login
 # Optional: copy to .dev.vars to override public vars from wrangler.jsonc.
 
+# WORKERS_PLAN=free
 # AI_CLEF_ENABLED=true
 # AI_JEV_ENABLED=true
 # AI_DEFAULT_PROVIDER=clef

@@ -5,6 +5,7 @@ import { BLACK, WHITE, createBoard, placeStone } from '../src/lib/gomoku.js';
 import { WIN_SCORE } from '../src/lib/ai.js';
 import {
   chooseMove, findImmediateWin, buildJevRequest, parseMoveKey, shortlist, LEVELS,
+  PLAN_BUDGETS, levelFor, readWorkersPlan,
 } from '../src/lib/jev/move.js';
 
 function placeRow(board, row, colStart, player, len) {
@@ -278,5 +279,48 @@ describe('buildJevRequest', () => {
       history: [{ row: 7, col: 7, player: WHITE }],
     });
     assert.deepEqual(request.state.history, []);
+  });
+});
+
+describe('Workers plan budgets', () => {
+  it('reads WORKERS_PLAN and treats anything but paid as free', () => {
+    assert.equal(readWorkersPlan({ WORKERS_PLAN: 'paid' }), 'paid');
+    assert.equal(readWorkersPlan({ WORKERS_PLAN: 'free' }), 'free');
+    assert.equal(readWorkersPlan({ WORKERS_PLAN: 'Paid' }), 'free');
+    assert.equal(readWorkersPlan({}), 'free');
+  });
+
+  it('applies the plan budgets to hard and master only', () => {
+    for (const level of ['hard', 'master']) {
+      for (const plan of ['free', 'paid']) {
+        const cfg = levelFor(level, plan);
+        assert.equal(cfg.search.nodeBudget, PLAN_BUDGETS[plan].search);
+        assert.equal(cfg.runoff.search.nodeBudget, PLAN_BUDGETS[plan].runoff);
+      }
+    }
+    assert.equal(levelFor('medium', 'free'), LEVELS.medium);
+    assert.equal(levelFor('medium', 'paid'), LEVELS.medium);
+  });
+
+  it('keeps a free-plan hard turn inside the free budgets', async () => {
+    let board = placeStone(createBoard(), 7, 7, BLACK);
+    board = placeStone(board, 7, 8, WHITE);
+    board = placeStone(board, 8, 8, BLACK);
+    board = placeStone(board, 6, 6, WHITE);
+    board = placeStone(board, 8, 7, BLACK);
+    const move = await chooseMove({
+      board, player: WHITE, difficulty: 'hard', plan: 'free', minConfidence: 0,
+      ask: async (request) => ({ choice: Object.keys(request.criteria)[0], confidence: 0.1 }),
+    });
+    const { search, runoff } = PLAN_BUDGETS.free;
+    const width = LEVELS.hard.search.width;
+    assert.ok(move.nodes <= search + runoff + 2 * width, `used ${move.nodes} nodes`);
+  });
+
+  it('searches deeper on the paid plan', async () => {
+    const board = placeStone(createBoard(), 7, 7, BLACK);
+    const free = await chooseMove({ board, player: WHITE, difficulty: 'hard', plan: 'free' });
+    const paid = await chooseMove({ board, player: WHITE, difficulty: 'hard', plan: 'paid' });
+    assert.ok(paid.nodes > free.nodes, `free ${free.nodes}, paid ${paid.nodes}`);
   });
 });

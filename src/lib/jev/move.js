@@ -35,8 +35,19 @@ import { classifyPlacement, findMasterTactic, lookupBook } from '../classic.js';
 const CHOICE_LIMIT = 255;
 
 /**
+ * Hard and master node budgets per Workers plan. The Free plan allows 10 ms of
+ * CPU per request and a node costs about 1.7 µs, so its search and runoff stay
+ * near 5 000 nodes together. The Paid plan allows 30 s by default.
+ */
+export const PLAN_BUDGETS = {
+  free: { search: 3_000, runoff: 1_500 },
+  paid: { search: 220_000, runoff: 160_000 },
+};
+
+/**
  * Per-level settings. `shortlist` is how many points Jev is offered — a short,
- * well-described list is chosen far better than a wide one.
+ * well-described list is chosen far better than a wide one. Hard and master
+ * take their node budgets from `PLAN_BUDGETS` through `levelFor`.
  */
 export const LEVELS = {
   easy: {
@@ -54,30 +65,47 @@ export const LEVELS = {
     runoff: null,
   },
   hard: {
-    search: { maxDepth: 8, width: 12, nodeBudget: 220_000, extensionLimit: 8 },
+    search: { maxDepth: 8, width: 12, extensionLimit: 8 },
     shortlist: 8,
     forced: true,
     // A gap this small is under one closed three — inside it the search has no
     // real opinion, which is exactly where Jev's judgement is worth having.
     band: { absolute: 300, relative: 0.2 },
     runoff: {
-      search: { maxDepth: 10, width: 8, nodeBudget: 160_000, extensionLimit: 10 },
+      search: { maxDepth: 10, width: 8, extensionLimit: 10 },
       confidence: 0.6,
       margin: 0.1,
     },
   },
   master: {
-    search: { maxDepth: 8, width: 12, nodeBudget: 220_000, extensionLimit: 8 },
+    search: { maxDepth: 8, width: 12, extensionLimit: 8 },
     shortlist: 12,
     forced: true,
     band: { absolute: 300, relative: 0.2 },
     runoff: {
-      search: { maxDepth: 10, width: 8, nodeBudget: 160_000, extensionLimit: 10 },
+      search: { maxDepth: 10, width: 8, extensionLimit: 10 },
       confidence: 0.6,
       margin: 0.1,
     },
   },
 };
+
+/** `WORKERS_PLAN` is "free" or "paid"; anything else counts as free. */
+export function readWorkersPlan(env = {}) {
+  return env.WORKERS_PLAN === 'paid' ? 'paid' : 'free';
+}
+
+/** A level's settings with the plan's node budgets on hard and master. */
+export function levelFor(level, plan = 'free') {
+  const cfg = LEVELS[level];
+  if (!cfg.runoff) return cfg;
+  const budget = PLAN_BUDGETS[plan] ?? PLAN_BUDGETS.free;
+  return {
+    ...cfg,
+    search: { ...cfg.search, nodeBudget: budget.search },
+    runoff: { ...cfg.runoff, search: { ...cfg.runoff.search, nodeBudget: budget.runoff } },
+  };
+}
 
 /** How much the deep search and Jev each count when hard blends the two. */
 const SEARCH_WEIGHT = 0.5;
@@ -436,6 +464,7 @@ function ruleMove(row, col) {
  * @param {Array<{row: number, col: number, player: number}>} [options.history]
  * @param {number} [options.minConfidence]
  * @param {string} [options.source] Provider attribution for model decisions.
+ * @param {'free'|'paid'} [options.plan] Workers plan that sets the hard and master node budgets.
  * @param {(request: object) => Promise<{choice?: string, confidence?: number,
  *          probabilities?: Record<string, number>}> | null} [options.ask]
  */
@@ -446,10 +475,11 @@ export async function chooseMove({
   history = [],
   minConfidence = 0.5,
   source = 'jev',
+  plan = 'free',
   ask,
 }) {
   const level = LEVELS[difficulty] ? difficulty : 'hard';
-  const cfg = LEVELS[level];
+  const cfg = levelFor(level, plan);
 
   // 1. Forced points stay in code, so they are never lost to a bad guess.
   if (cfg.forced) {
