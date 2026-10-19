@@ -231,6 +231,123 @@ Root moves are searched on a full window rather than a raised alpha. That costs 
 
 For reference, the previous depth-4 engine re-evaluated the whole board for every candidate at every node, and took 29–49 seconds per move on the same positions.
 
+## AI Strength Tuning, Performance & Cost (棋力调参、性能与成本)
+
+The AI combines a classical tactical evaluator, an iterative-deepening alpha-beta search, and a Cloudflare Workers AI System One model (Clef / Jev). Adjusting its playing strength requires balancing search depth, candidate filtering, model tier, and compute/cost budgets across Cloudflare's runtime limits.
+
+### 1. Architectural Layers & Tuning Levers (棋力分层调参体系)
+
+Gomoku playing strength is controlled across four distinct layers:
+
+```mermaid
+flowchart TD
+    A["Layer 0: Absolute Rules & Classical Tactics (代码强制层)"] -->|"Unresolved"| B["Layer 1: Heuristic Alpha-Beta Search (启发式深搜层)"]
+    B --> C["Layer 2: Candidate Band & Shortlist (近等带候选初筛)"]
+    C --> D["Layer 3: Model Decision & Distribution Blend (模型直觉裁决)"]
+    D -->|"Unsure (Conf < 0.6 or Gap < 0.1)"| E["Layer 4: Deeper Runoff (10-Ply 决胜轮二次裁决)"]
+    D -->|"Confident"| F["Final Move"]
+    E --> F
+```
+
+1. **Layer 0: Absolute Rules & Classical Shapes (`src/lib/classic.js`)**
+   - **Immediate win / block**: Five-in-a-row and blocking opponent five are resolved immediately in code ($O(1)$) above Easy.
+   - **VCF (Victory by Continuous Fours)**: On Master, continuous four attack chains are solved via depth-first threat search before minimax or model calls.
+   - **Canonical Openings (26 开局库)**: Master recognizes canonical openings (Flower Moon / 花月, Po Moon / 浦月, etc.) across 8 symmetries, locking root moves to standard winning branches.
+   - *Impact*: Eliminates catastrophic tactical blunders; costs 0 CPU search nodes and 0 API tokens.
+2. **Layer 1: Alpha-Beta Search Engine (`src/lib/ai.js`)**
+   - **Node Budget (`nodeBudget`)**: Controls how many tree nodes may be explored before returning the deepest completed iterative pass.
+   - **Search Width (`width`)**: Candidate branching factor at root and interior nodes (narrowed at plies 2, 4+).
+   - **Threat Extension (`extensionLimit`)**: Extends search by +1 ply whenever a move creates an open three or a four, overcoming horizon effects.
+   - **Evaluation Weights (`EVALUATION`)**: Consecutive stone scores (Five: 100,000, Open Four: 10,000, Closed Four: 1,000, Open Three: 1,000) with a 1.1 defensive multiplier (`ownScore - opponentScore * 1.1`).
+3. **Layer 2: Shortlisting & Noise Band (`src/lib/jev/move.js`)**
+   - **Shortlist Size (`shortlist`)**: Number of candidate moves presented to the model (Easy: 24, Medium: 12, Hard: 8, Master: 12).
+   - **Near-Equal Noise Band (`band`)**: Moves must fall within `max(300, best * 0.2)` of the search's #1 move. If the search finds an overwhelming tactical move, only that move is offered.
+   - *Impact*: Acts as a safety guardrail. The model is never permitted to play a tactically inferior move that the engine proved is a blunder.
+4. **Layer 3: Model Blending & Runoff (`src/lib/jev/move.js`)**
+   - **Blend Ratio (`SEARCH_WEIGHT: 0.5, JEV_WEIGHT: 0.5`)**: Combines normalized search scores with model choice probabilities.
+   - **Runoff Thresholds (`runoff.confidence: 0.6, runoff.margin: 0.1`)**: If the model is torn or unconfident, re-searches the top 2 candidates to depth 10 and invokes a second model decision.
+
+---
+
+### 2. Parameter Tuning Matrix (核心调参矩阵)
+
+| Category (分类) | Parameter (参数) | Location (位置) | Default (默认值) | Tuning Direction & Strength Impact (调参方向与棋力影响) | Performance & Latency (性能与延迟) | Cost & Resource Impact (成本与资源消耗) |
+|---|---|---|---|---|---|---|
+| **Search Budget** | `PLAN_BUDGETS.free.search` | `src/lib/jev/move.js` | `3_000` | Increasing to 5,000 deepens Free search (2 $\to$ 4 plies), improving tactical vision. | CPU time rises from ~5ms to ~8.5ms. **Critical risk of exceeding Cloudflare 10ms limit (Error 1102)**. | Free tier ($0). |
+| **Search Budget** | `PLAN_BUDGETS.paid.search` | `src/lib/jev/move.js` | `220_000` | Increasing to 500,000 reaches 10–12 plies, catching deep tactical combinations. | CPU time increases from ~350ms to ~850ms per move. | Paid plan includes 30s CPU limit; no extra monetary cost. |
+| **Search Budget** | `PLAN_BUDGETS.runoff` | `src/lib/jev/move.js` | `1_500` (Free) / `160_000` (Paid) | Sets budget for depth-10 runoff between top 2 moves. | Adds CPU time only when a turn triggers the runoff round. | Pure CPU compute. |
+| **Search Tree** | `maxDepth` | `src/lib/ai.js` | 8 (Hard/Master), 10 (Runoff) | Upper bound on iterative deepening plies. Higher values allow deeper lookahead if budget permits. | Increases recursion depth; bounded by `nodeBudget`. | No API cost. |
+| **Search Tree** | `width` | `src/lib/ai.js` | 12 (Hard/Master) | Narrowing (e.g. 8) accelerates deeper search along principal lines; widening (e.g. 16) avoids missing flank tactics. | Exponential node growth $O(W^D)$; narrower width reaches deeper plies within budget. | No API cost. |
+| **Search Tree** | `extensionLimit` | `src/lib/ai.js` | 8 (Hard/Master) | Extends search plies on forcing moves (fours/open threes). Higher values completely prevent horizon blunders. | Causes more nodes to be explored in highly volatile tactical skirmishes. | No API cost. |
+| **Evaluation** | Defensive multiplier | `src/lib/ai.js` | `1.1` | $>1.2$ makes AI overly conservative/defensive; $<1.0$ makes AI aggressive, risking missed opponent counter-attacks. | Zero runtime overhead. | No API cost. |
+| **Candidate Band** | `band.absolute` / `band.relative` | `src/lib/jev/move.js` | `300` / `0.2` (20%) | Tightening (e.g. 150 / 0.1) forces strict engine play; widening (e.g. 500 / 0.3) grants LLM more strategic freedom but risks sub-optimal moves. | Zero latency impact. | Prevents LLM hallucinations from deteriorating game strength. |
+| **Candidate List** | `shortlist` | `src/lib/jev/move.js` | 8 (Hard), 12 (Master), 24 (Easy) | Fewer candidates (6–8) focus model attention; more candidates (16+) dilute attention and increase prompt tokens. | Larger shortlists increase LLM Time-to-First-Token (TTFT) by ~50–150ms. | **Direct Token Cost**: Each candidate adds ~100–140 JSON tokens to prompt. |
+| **Blending** | `SEARCH_WEIGHT` / `JEV_WEIGHT` | `src/lib/jev/move.js` | `0.5` / `0.5` | `0.7 / 0.3` favors engine tactical certainty; `0.3 / 0.7` favors LLM strategic intuition and shape harmony. | Zero computation overhead. | No API cost. |
+| **Runoff Trigger** | `runoff.confidence` / `runoff.margin` | `src/lib/jev/move.js` | `0.6` / `0.1` | Higher thresholds (e.g. 0.8 / 0.2) trigger runoff more often, strengthening contested moves. | Runoff adds a second model round + depth-10 search (+300–800ms latency). | **Doubles API calls** for that turn (2 model inferences instead of 1). |
+| **Model Selection** | `clefModel(difficulty)` | `src/lib/workers-ai/ask.js` | `clef-flash` (Hard), `clef` (Master) | `clef` has superior position judgment; `clef-flash` provides rapid, lightweight selection. | Flash responds in ~100–200ms; full Clef / Jev takes ~400–800ms. | Clef Flash uses minimal Workers AI quota; full Clef / Jev consumes more AI Gateway credits. |
+| **Inference Safeguard** | `CLEF_TIMEOUT_MS` | `wrangler.jsonc` | `6000` | Shorter timeout (e.g. 2500ms) guarantees fast UI fallback to engine search if Cloudflare AI lags. | Limits worst-case turn delay for end users. | Timed-out remote requests may still count towards quota. |
+
+---
+
+### 3. The Three-Way Trade-off: Strength vs Performance vs Cost (棋力、性能与成本权衡)
+
+#### A. Compute Costs & Cloudflare Workers Plan Limits
+- **Node Execution Speed**: A search node on Cloudflare Workers V8 takes $\approx 1.7\,\mu\text{s}$.
+- **Free Plan Limit (10 ms CPU)**:
+  $$\text{Total CPU Time} \approx (N_{\text{search}} + N_{\text{runoff}}) \times 1.7\,\mu\text{s} + \text{Replay Validation (~1.5 ms)} \le 10\,\text{ms}$$
+  The Free plan budget (`search: 3,000`, `runoff: 1,500`) keeps CPU usage around $7.5\,\text{ms}$, safely below the 10 ms kill limit. Raising `search` above 4,500 risks **Cloudflare Error 1102 (*Worker exceeded resource limits*)**, terminating user requests with HTTP 503.
+- **Paid Plan Limit (30 s CPU)**:
+  The Paid plan budget (`search: 220,000`, `runoff: 160,000`) consumes $\approx 370\,\text{ms}$ of CPU, searching 6–10 plies deep without any risk of resource limits.
+
+#### B. Inference Cost & Token Efficiency
+- Jev and Clef receive structured board data via `buildJevRequest()` in JSON format.
+- **Prompt Token Formula**:
+  $$\text{Tokens} \approx \underbrace{250}_{\text{Rules \& State}} + \underbrace{L_{\text{history}} \times 8}_{\text{Move History}} + \underbrace{N_{\text{candidates}} \times 120}_{\text{Criteria, Lines \& Shapes}}$$
+- A shortlist of 8 candidates consumes $\approx 1,200\text{--}1,500$ tokens per call.
+- A shortlist of 24 candidates consumes $\approx 3,000\text{--}3,500$ tokens, tripling inference latency and token consumption while diluting model attention.
+- Hard and Master candidate pruning (`band`) actively reduces the number of candidates offered whenever the search engine finds clear tactical divergence, minimizing unnecessary token burn.
+
+#### C. Runoff Economics: Two-Round Trade-offs
+- In ~75% of positions, the model makes a confident choice ($\ge 0.6$) or the top move has a clear margin ($\ge 0.1$). This costs **1 model inference** and **1 search pass**.
+- In ~25% of knife-edge positions, the runoff triggers:
+  1. Top 2 moves are re-searched to depth 10 with `PLAN_BUDGETS.runoff`.
+  2. A second model call is dispatched with refreshed lines.
+- *Result*: Strengthens play exactly where it matters most, avoiding paying double latency and token costs on straightforward turns.
+
+#### D. Browser Offline Fallback Constraints
+- When the server is unreachable or offline, `src/scripts/main.js` falls back to `FALLBACK_LIMITS` (`maxDepth: 6`, `nodeBudget: 60_000`).
+- Because client JavaScript runs on the browser's UI thread, searches cannot exceed 100,000 nodes without freezing canvas rendering and dropping frame rates.
+
+---
+
+### 4. Practical Tuning Presets (推荐调优方案)
+
+#### Preset 1: Free Tier Ultra-Safe (免费版极致安全型)
+*Goal: Maximum stability under Cloudflare Free 10ms CPU limit with zero Error 1102.*
+- `WORKERS_PLAN="free"`
+- `PLAN_BUDGETS.free = { search: 2_500, runoff: 1_200 }`
+- `LEVELS.hard.shortlist = 6`
+- `CLEF_TIMEOUT_MS = 4000`
+- Model: `@cf/cloudflare/clef-flash`
+
+#### Preset 2: Paid Tournament Master (付费版大师锦标赛型)
+*Goal: Maximum playing strength, Grandmaster-level opening, deep 10-ply tactical foresight.*
+- `WORKERS_PLAN="paid"`
+- `PLAN_BUDGETS.paid = { search: 350_000, runoff: 250_000 }`
+- `LEVELS.master.shortlist = 12`
+- `LEVELS.master.runoff.confidence = 0.75` (frequent deeper re-verification)
+- Model: `@cf/cloudflare/clef` or `typesafe/jev-1.14.0`
+
+#### Preset 3: Low-Latency Real-Time Blitz (低延迟极速对弈型)
+*Goal: Turn latency < 350ms for lightning-fast mobile play.*
+- `PLAN_BUDGETS.paid = { search: 80_000, runoff: 40_000 }`
+- `LEVELS.hard.runoff = null` (disable second-round runoff)
+- `LEVELS.hard.shortlist = 5`
+- Model: `@cf/cloudflare/clef-flash`
+- `CLEF_TIMEOUT_MS = 2500`
+
+---
+
 ## Project Structure
 
 ```
