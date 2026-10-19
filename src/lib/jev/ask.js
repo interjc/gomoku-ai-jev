@@ -1,7 +1,7 @@
 /** Server-side Jev inference through the Cloudflare AI binding. */
 import { askWorkersAI } from '../workers-ai/ask.js';
 
-export const JEV_MODEL = 'typesafe/jev';
+export const JEV_MODEL = 'typesafe/jev-1.14.0';
 
 export function readJevConfig(env = {}) {
   const minConfidence = Number(env.JEV_MIN_CONFIDENCE ?? 0.5);

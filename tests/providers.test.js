@@ -58,9 +58,9 @@ describe('provider capabilities', () => {
       JEV_MIN_CONFIDENCE: '0.7',
     }, 'jev', 'master');
     assert.deepEqual(await provider.ask(request), response);
-    assert.equal(provider.model, 'typesafe/jev');
+    assert.equal(provider.model, 'typesafe/jev-1.14.0');
     assert.equal(provider.minConfidence, 0.7);
-    assert.deepEqual(sent, { model: 'typesafe/jev', payload: {
+    assert.deepEqual(sent, { model: 'typesafe/jev-1.14.0', payload: {
       state: request.state,
       questions: { move: { type: 'choice', instructions: request.instructions, criteria: request.criteria } },
     } });

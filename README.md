@@ -71,7 +71,7 @@ Both rounds of a hard/master decision use the same model. No TypeSafe key or sep
 
 ### Jev through Cloudflare
 
-Jev uses the same `AI` binding as Clef with the fixed model ID [`typesafe/jev`](https://developers.cloudflare.com/ai/models/typesafe/jev/). Its request contains `state` and the typed `move` question. Both rounds use Jev, with a six-second timeout per call and no automatic retry. Responses use the same choice and probability validation as Clef.
+Jev uses the same `AI` binding as Clef with the fixed model ID [`typesafe/jev-1.14.0`](https://developers.cloudflare.com/ai/models/typesafe/jev/). Its request contains `state` and the typed `move` question. Both rounds use Jev, with a six-second timeout per call and no automatic retry. Responses use the same choice and probability validation as Clef.
 
 `JEV_MIN_CONFIDENCE` retains the Jev acceptance floor. The TypeSafe SDK, API key, custom endpoint, and model environment settings are no longer used. Local settings may override public Wrangler variables in `.dev.vars`, for example:
 
@@ -171,7 +171,7 @@ When the model's confidence is under 0.6, or the blend leaves the top two within
 
 An immediate five, or a block of the opponent's immediate five, is still played in code above easy. On Master, unambiguous classical winning tactics (continuous fours / VCF, four-threes) and jump-four blocks are played directly without asking the model. If the request fails, the point is illegal, or it falls outside the band, the Worker returns its own search move.
 
-The Worker calls Jev as `typesafe/jev` through the [Cloudflare AI binding](https://developers.cloudflare.com/ai/models/typesafe/jev/).
+The Worker calls Jev as `typesafe/jev-1.14.0` through the [Cloudflare AI binding](https://developers.cloudflare.com/ai/models/typesafe/jev/).
 
 ## How the AI Works
 
@@ -183,7 +183,7 @@ The API accepts only Gomoku positions, without an AI classification step:
 - Only `board`, `player`, `history`, `difficulty`, and `provider` are accepted. `board`, `player`, and the complete `history` are required. Difficulty defaults to hard and provider defaults to the available deployment default; supplied values must be valid enum values. Prompt, messages, model, state, instructions, and all other extra fields return 400.
 - The board must be a 15 × 15 numeric matrix of 0 (empty), 1 (black), or 2 (white). Each history entry contains only numeric `row`, `col`, and `player`. The server replays from an empty board, checks black-first alternating turns, integer coordinates, unique points, and exact agreement with the supplied board. The requested player must be next to move.
 - Won games, moves after a win, full boards, missing or inconsistent records, and malformed JSON return 400 before search or inference.
-- Cloudflare model IDs are fixed to `@cf/cloudflare/clef`, `@cf/cloudflare/clef-flash`, and `typesafe/jev`. Clients cannot supply a model ID, endpoint, instructions, or candidate descriptions. The server generates the model request from the validated game.
+- Cloudflare model IDs are fixed to `@cf/cloudflare/clef`, `@cf/cloudflare/clef-flash`, and `typesafe/jev-1.14.0`. Clients cannot supply a model ID, endpoint, instructions, or candidate descriptions. The server generates the model request from the validated game.
 
 This verifies that input is a legal Gomoku record. It cannot prove that the record came from a human playing on this site, and does not rate-limit repeated legal game requests.
 

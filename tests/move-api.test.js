@@ -127,7 +127,7 @@ describe('Gomoku-only move API', () => {
   it('uses Clef by default and allows choosing Jev with only the AI binding', async () => {
     for (const [provider, model, name, source] of [
       [undefined, '@cf/cloudflare/clef-flash', 'Clef Flash', 'clef'],
-      ['jev', 'typesafe/jev', 'Jev', 'jev'],
+      ['jev', 'typesafe/jev-1.14.0', 'Jev', 'jev'],
     ]) {
       const calls = [];
       const env = { AI: { async run(id, payload) {
